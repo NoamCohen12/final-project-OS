@@ -1,12 +1,6 @@
 
 #include "MST.hpp"
 
-#include <chrono>
-#include <iostream>
-#include <set>
-#include <tuple>
-#include <utility>
-#include <vector>
 constexpr int INF = 0x3f3f3f3f;
 
 struct Edge {
@@ -21,7 +15,7 @@ struct Edge {
     Edge(int _w, int _to, int _id) : w(_w), to(_to), id(_id) {}
 };
 
-vector<tuple<int, int, int, int>> MST::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
+string MST::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
     UnionFind graph(n);
     vector<tuple<int, int, int, int>> edges;
     vector<tuple<int, int, int, int>> spanning_tree;
@@ -39,8 +33,10 @@ vector<tuple<int, int, int, int>> MST::kruskal(const vector<tuple<int, int, int,
             spanning_tree.emplace_back(from, to, cost, id);
         }
     }
-
-    return spanning_tree;
+    cout << "Kruskal's Algorithm\n";
+    cout << "Minimum Spanning Tree (MST):\n";
+    cout << printMST(spanning_tree);
+    return printMST(spanning_tree);
 }
 
 vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) {
@@ -72,27 +68,54 @@ vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) 
     return spanning_tree;
 }
 
-vector<tuple<int, int, int, int>> MST::prim(const vector<tuple<int, int, int, int>>& edges, int n)
-
+string MST::prim(const vector<tuple<int, int, int, int>>& edges, int n)
 {
+    int i = 1;
+    cout << "in" << endl;
+
+    // Create an adjacency list with 'n' nodes
     vector<vector<Edge>> adj(n);
+
     for (const auto& e : edges) {
-        int a, b, c, id;
-        tie(a, b, c, id) = e;
-        adj[a].push_back(Edge(c, b, id));
-        adj[b].push_back(Edge(c, a, id));
+        cout << "in for" << endl;
+
+        // Unpack the tuple into nodes (u, v), weight, and edge ID
+        int u, v, weight, id;
+        tie(u, v, weight, id) = e;  // Correct unpacking
+
+        cout << "in tie" << endl;
+        cout << u << " " << v << " " << weight << " " << id << endl;
+//define the size of the adjacency list
+        cout<<adj.size()<<endl;
+        adj.resize(n);
+cout<<adj.size()<<endl;
+        // Add the edges to the adjacency list
+        adj[u].push_back(Edge(weight, v, id));  // Edge from u to v
+        adj[v].push_back(Edge(weight, u, id));  // Edge from v to u (undirected graph)
+        
+        cout << "f" << endl;
+        cout << i++ << endl;
     }
 
+    // Now call your _prim function, assuming it takes adj and n
     vector<tuple<int, int, int, int>> res = _prim(adj, n);
 
-    return res;
+    cout << "Prim's Algorithm\n";
+
+    cout << printMST(res);
+    
+    // Return the MST result as a string
+    return printMST(res);
 }
 
-void MST::printMST(const vector<tuple<int, int, int, int>>& mst) {
-    std::cout << "Minimum Spanning Tree (MST):\n";
+
+string MST::printMST(const vector<tuple<int, int, int, int>>& mst) {
+    std::ostringstream oss;
+    oss << "Minimum Spanning Tree (MST):\n";
     for (const auto& edge : mst) {
         int from, to, weight, id;
         std::tie(from, to, weight, id) = edge;
-        std::cout << "Edge ID " << id << ": (" << from << " -> " << to << ") Weight: " << weight << "\n";
+        oss << "Edge ID " << id << ": (" << from << " -> " << to << ") Weight: " << weight << "\n";
     }
+    return oss.str();
 }
