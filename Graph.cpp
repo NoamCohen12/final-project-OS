@@ -29,7 +29,7 @@ class Graph {
         numVertices = n;
     }
     //return edges
-    vector<std::tuple<int, int, int, int>> getEdges() {
+    vector<tuple<int, int, int, int>> getEdges() {
         return edges;
     }
     tuple<int,int,int,int> getEdge(int i) {

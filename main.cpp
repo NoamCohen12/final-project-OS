@@ -16,6 +16,7 @@
 #include <sstream>  // Include the necessary header for istringstream
 #include <unordered_map>
 #include <vector>
+#include <string>
 
 #include "Graph.cpp"
 #include "GraphGUI.cpp"  // Include the GraphGUI header
@@ -40,6 +41,16 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
         graph.emplace_back(v, u, w, i);  // Add the reverse edge for undirected graph
     }
     return graph;
+}
+string MST_to_string(const vector<tuple<int, int, int, int>>& mst) {
+    std::ostringstream oss;
+    oss << "Minimum Spanning Tree (MST):\n";
+    for (const auto& edge : mst) {
+        int from, to, weight, id;
+        std::tie(from, to, weight, id) = edge;
+        oss << "Edge ID " << id << ": (" << from << " -> " << to << ") Weight: " << weight << "\n";
+    }
+    return oss.str();
 }
 
 string graph_user_commands(string input_user) {
@@ -83,13 +94,13 @@ string graph_user_commands(string input_user) {
                 ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
             }
             cout << "In MST-P, sharedGraph.getnumVertices(): " << sharedGraph.getnumVertices() << endl;
-            ans += mst.prim(sharedGraph.getEdges(), sharedGraph.getnumVertices());
+            ans += MST_to_string(mst.prim(sharedGraph.getEdges(), sharedGraph.getnumVertices()));
             cout << "MST-P completed" << endl;
         }
     } else if (command_of_user == "MST-K") {
         cout << "MST-K n: " << n << endl;
         if (sharedGraph.getSize() != 0) {
-            ans += mst.kruskal(sharedGraph.getEdges(), sharedGraph.getnumVertices());
+            ans += MST_to_string(mst.kruskal(sharedGraph.getEdges(), sharedGraph.getnumVertices()));
         }
     } else if (command_of_user == "Newedge") {
         int from, to, weight;
@@ -205,34 +216,7 @@ build_random_connected_graph(int n, int m, unsigned int seed) {
 //     return 0;
 // }
 
-int longestdistance(Graph graph, int u, int v) {
-    int n = graph.getnumVertices();  // Get the number of vertices in the graph
-    vector<int> dist(n, INT_MIN);    // Initialize distance vector with maximum integer values
-    dist[u] = 0;                     // Set the distance from the source vertex to itself as 0
-    queue<int> q;                    // Create a queue for BFS
-    q.push(u);                       // Push the source vertex into the queue
 
-    while (!q.empty()) {             // Continue until the queue is empty
-        int x = q.front();           // Get the front element of the queue
-        q.pop();                     // Remove the front element from the queue
-
-        for (int i = 0; i < graph.getSize(); i++) {  // Iterate over all edges in the graph
-            int u, v, w, id;                         // Variables to store edge details
-            tie(u, v, w, id) = graph.getEdge(i);     // Get the edge details
-
-            // Check if the current vertex is one of the endpoints of the edge
-            if ((u == x || v == x)) {
-                int neighbor = (u == x) ? v : u;     // Determine the neighbor vertex
-                // If the new distance to the neighbor is shorter, update it
-                if (dist[neighbor] < dist[x] + w) {
-                    dist[neighbor] = dist[x] + w;    // Update the distance to the neighbor
-                    q.push(neighbor);                // Push the neighbor into the queue
-                }
-            }
-        }
-    }
-    return dist[v];  // Return the distance to the destination vertex
-}
 int main() {
     int listener = -1;                      // listening socket descriptor
     struct sockaddr_storage clientAddress;  // client address

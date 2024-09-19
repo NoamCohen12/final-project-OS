@@ -17,10 +17,7 @@ using namespace std;
 
 
 class MST {
-
    public:
-   string prim(const vector<tuple<int, int, int, int>>& edges, int n);
-   string kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n);
-   string printMST(const vector<tuple<int, int, int, int>>& mst);
-
+   vector<tuple<int, int, int, int>> prim(const vector<tuple<int, int, int, int>>& edges, int n);
+   vector<tuple<int, int, int, int>> kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n);
 };

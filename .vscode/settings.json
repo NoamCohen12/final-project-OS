@@ -9,6 +9,8 @@
         "iostream": "cpp",
         "deque": "cpp",
         "string": "cpp",
-        "ostream": "cpp"
+        "ostream": "cpp",
+        "initializer_list": "cpp",
+        "utility": "cpp"
     }
 }
