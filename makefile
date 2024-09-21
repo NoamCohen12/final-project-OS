@@ -4,7 +4,7 @@ CXX = clang++
 
 all: main 
 
-main: main.o MST.o union_find.o Graph.o GraphGUI.o
+main: main.o union_find.o Graph.o GraphGUI.o MST_graph.o MST_stats.o MST_strategy.o
 	$(CXX) -o $@ $^ -lsfml-graphics -lsfml-window -lsfml-system
 
 main.o: main.cpp
@@ -13,8 +13,14 @@ main.o: main.cpp
 GraphGUI.o: GraphGUI.cpp
 	$(CXX) -c -o $@ $^ 
 
-MST.o: MST.cpp
+MST_graph.o: MST_graph.cpp
 	$(CXX) -c -o $@ $^ 
+
+MST_stats.o: MST_stats.cpp
+	$(CXX) -c -o $@ $^
+
+MST_strategy.o: MST_strategy.cpp
+	$(CXX) -c -o $@ $^
 
 union_find.o: union_find.cpp
 	$(CXX) -c -o $@ $^ 

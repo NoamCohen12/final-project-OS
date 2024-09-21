@@ -1,5 +1,5 @@
 
-#include "MST.hpp"
+#include "MST_strategy.hpp"
 
 constexpr int INF = 0x3f3f3f3f;
 
@@ -15,7 +15,7 @@ struct Edge {
     Edge(int _w, int _to, int _id) : w(_w), to(_to), id(_id) {}
 };
 
-vector<tuple<int, int, int, int>> MST::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
+vector<tuple<int, int, int, int>> MST_strategy::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
     UnionFind graph(n);
     vector<tuple<int, int, int, int>> edges;
     vector<tuple<int, int, int, int>> spanning_tree;
@@ -66,7 +66,7 @@ vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) 
     return spanning_tree;
 }
 
-vector<tuple<int, int, int, int>> MST::prim(const vector<tuple<int, int, int, int>>& edges, int n) {
+vector<tuple<int, int, int, int>> MST_strategy::prim(const vector<tuple<int, int, int, int>>& edges, int n) {
     // Create an adjacency list with 'n' nodes
     vector<vector<Edge>> adj(n);
 

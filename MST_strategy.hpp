@@ -1,4 +1,6 @@
 
+#ifndef MST_STRATEGY_HPP
+#define MST_STRATEGY_HPP
 #include <algorithm>
 #include <iostream>
 #include <tuple>
@@ -16,8 +18,10 @@ using namespace std;
 
 
 
-class MST {
+class MST_strategy {
    public:
    vector<tuple<int, int, int, int>> prim(const vector<tuple<int, int, int, int>>& edges, int n);
    vector<tuple<int, int, int, int>> kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n);
 };
+
+#endif // MST_STRATEGY_HPP

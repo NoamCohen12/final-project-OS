@@ -20,15 +20,16 @@
 
 #include "Graph.cpp"
 #include "GraphGUI.cpp"  // Include the GraphGUI header
-#include "MST.hpp"
 #include "union_find.hpp"
-
+#include "MST_strategy.hpp"
+#include "MST_graph.hpp"
+#include "MST_stats.hpp"
 #define PORT "9034"  // port we're listening on
 using namespace std;
 
 Graph sharedGraph;  // Shared graph for all clients
 mutex mtx;
-MST mst;
+MST_strategy mst;
 // assume the input is in the form of "Newgraph n m u v w"
 // and the input of edge u v with weight w but dont add the reverse edge with weight w'
 vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of_Edge) {
@@ -37,6 +38,10 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
     int u, v, w;  // vertex and weight
     for (int i = 0; i < num_of_Edge; ++i) {
         iss >> u >> v >> w;
+        //dibug print
+        cout << "Newgraph u: " << u << endl;
+        cout << "Newgraph v: " << v << endl;
+        cout << "Newgraph w: " << w << endl;
         graph.emplace_back(u, v, w, i);
         graph.emplace_back(v, u, w, i);  // Add the reverse edge for undirected graph
     }
@@ -76,7 +81,7 @@ string graph_user_commands(string input_user) {
             sharedGraph.setEdges(newEdges);       // Pass the local variable to setEdges
             sharedGraph.setnumVertices(n);
             ans += "Graph created:\n";
-            for (int i = 0; i < m; i++) {
+            for (int i = 0; i < 2*m; i = i+2) {
                 int u, v, w, id;
                 tie(u, v, w, id) = sharedGraph.getEdge(i);
                 ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
