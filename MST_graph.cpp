@@ -1,5 +1,9 @@
 #include "MST_graph.hpp"
 
+// MST_graph(vector<tuple<int, int, int, int>> edges) : edges(edges) {
+//     numVertices = edges.size() + 1;
+//     alldistances = calculateWeightMatrix(edges.size() + 1, edges);
+// };
 
 // Helper function to perform DFS and accumulate the path weight between two vertices
 bool dfs(int current, int target, const vector<vector<tuple<int, int, int>>>& adj, vector<bool>& visited, int& path_weight) {
@@ -27,7 +31,7 @@ bool dfs(int current, int target, const vector<vector<tuple<int, int, int>>>& ad
 
 // Function to generate the matrix of total path weights between every pair of vertices
 vector<vector<int>> calculateWeightMatrix(int n, const vector<tuple<int, int, int, int>>& edges) {
-    vector<vector<tuple<int, int, int>>> adj(n);  // Using tuple directly for adjacency list
+    vector<vector<tuple<int, int, int>>> adj(n);             // Using tuple directly for adjacency list
     vector<vector<int>> weightMatrix(n, vector<int>(n, 0));  // Initialize the weight matrix
 
     // Build the adjacency list for the tree from the edges
@@ -52,7 +56,8 @@ vector<vector<int>> calculateWeightMatrix(int n, const vector<tuple<int, int, in
     return weightMatrix;
 }
 
-
-
-   
-
+MST_graph::MST_graph(vector<tuple<int, int, int, int>> edges) {
+    this->edges = edges;
+    numVertices = edges.size() + 1;
+    alldistances = calculateWeightMatrix(edges.size() + 1, edges);
+}

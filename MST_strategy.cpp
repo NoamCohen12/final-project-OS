@@ -15,7 +15,7 @@ struct Edge {
     Edge(int _w, int _to, int _id) : w(_w), to(_to), id(_id) {}
 };
 
-vector<tuple<int, int, int, int>> MST_strategy::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
+MST_graph MST_strategy::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
     UnionFind graph(n);
     vector<tuple<int, int, int, int>> edges;
     vector<tuple<int, int, int, int>> spanning_tree;
@@ -34,7 +34,7 @@ vector<tuple<int, int, int, int>> MST_strategy::kruskal(const vector<tuple<int, 
         }
     }
     cout << "Kruskal's Algorithm\n";
-    return spanning_tree;
+    return MST_graph(spanning_tree);
 }
 
 vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) {
@@ -66,7 +66,7 @@ vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) 
     return spanning_tree;
 }
 
-vector<tuple<int, int, int, int>> MST_strategy::prim(const vector<tuple<int, int, int, int>>& edges, int n) {
+MST_graph MST_strategy::prim(const vector<tuple<int, int, int, int>>& edges, int n) {
     // Create an adjacency list with 'n' nodes
     vector<vector<Edge>> adj(n);
 
@@ -85,6 +85,6 @@ vector<tuple<int, int, int, int>> MST_strategy::prim(const vector<tuple<int, int
     cout << "Prim's Algorithm\n";
 
     // Return the MST result as a string
-    return spanning_tree;
+    return MST_graph(spanning_tree);
 }
 

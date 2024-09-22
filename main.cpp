@@ -14,22 +14,26 @@
 #include <random>
 #include <set>
 #include <sstream>  // Include the necessary header for istringstream
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <string>
 
 #include "Graph.cpp"
 #include "GraphGUI.cpp"  // Include the GraphGUI header
-#include "union_find.hpp"
-#include "MST_strategy.hpp"
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
+#include "MST_strategy.hpp"
+#include "ThreadPool.hpp"
+#include "union_find.hpp"
 #define PORT "9034"  // port we're listening on
 using namespace std;
 
 Graph sharedGraph;  // Shared graph for all clients
 mutex mtx;
 MST_strategy mst;
+MST_graph mst_graph;
+bool isMST = false;
+
 // assume the input is in the form of "Newgraph n m u v w"
 // and the input of edge u v with weight w but dont add the reverse edge with weight w'
 vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of_Edge) {
@@ -38,7 +42,7 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
     int u, v, w;  // vertex and weight
     for (int i = 0; i < num_of_Edge; ++i) {
         iss >> u >> v >> w;
-        //dibug print
+        // dibug print
         cout << "Newgraph u: " << u << endl;
         cout << "Newgraph v: " << v << endl;
         cout << "Newgraph w: " << w << endl;
@@ -47,18 +51,22 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
     }
     return graph;
 }
-string MST_to_string(const vector<tuple<int, int, int, int>>& mst) {
-    std::ostringstream oss;
-    oss << "Minimum Spanning Tree (MST):\n";
-    for (const auto& edge : mst) {
-        int from, to, weight, id;
-        std::tie(from, to, weight, id) = edge;
-        oss << "Edge ID " << id << ": (" << from << " -> " << to << ") Weight: " << weight << "\n";
+string MST_to_string(const MST_graph &mst) {
+    string ans;
+    vector<tuple<int, int, int, int>> edges = mst.getEdges();
+    for (const auto &e : edges) {
+        int u, v, w, id;
+        tie(u, v, w, id) = e;
+        ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
     }
-    return oss.str();
+    return ans;
 }
 
 string graph_user_commands(string input_user) {
+    // Shared string to accumulate results
+    std::ostringstream sharedAns;
+    std::mutex mtxAns;
+
     string ans;
     string command_of_user;
     istringstream iss(input_user);
@@ -81,7 +89,7 @@ string graph_user_commands(string input_user) {
             sharedGraph.setEdges(newEdges);       // Pass the local variable to setEdges
             sharedGraph.setnumVertices(n);
             ans += "Graph created:\n";
-            for (int i = 0; i < 2*m; i = i+2) {
+            for (int i = 0; i < 2 * m; i = i + 2) {
                 int u, v, w, id;
                 tie(u, v, w, id) = sharedGraph.getEdge(i);
                 ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
@@ -89,23 +97,17 @@ string graph_user_commands(string input_user) {
         }
     } else if (command_of_user == "MST-P") {
         if (sharedGraph.getSize() != 0) {
-            cout << "MST-P n: " << n << endl;
-            cout << "Shared graph size: " << sharedGraph.getSize() << endl;
-
-            // Debug print edges
-            for (int i = 0; i < sharedGraph.getSize(); i++) {
-                int u, v, w, id;
-                tie(u, v, w, id) = sharedGraph.getEdge(i);
-                ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
-            }
-            cout << "In MST-P, sharedGraph.getnumVertices(): " << sharedGraph.getnumVertices() << endl;
-            ans += MST_to_string(mst.prim(sharedGraph.getEdges(), sharedGraph.getnumVertices()));
+            isMST = true;
+            mst_graph = mst.prim(sharedGraph.getEdges(), sharedGraph.getnumVertices());
+            ans += MST_to_string(mst_graph);
             cout << "MST-P completed" << endl;
         }
     } else if (command_of_user == "MST-K") {
         cout << "MST-K n: " << n << endl;
         if (sharedGraph.getSize() != 0) {
-            ans += MST_to_string(mst.kruskal(sharedGraph.getEdges(), sharedGraph.getnumVertices()));
+            isMST = true;
+            mst_graph = mst.kruskal(sharedGraph.getEdges(), sharedGraph.getnumVertices());
+            ans += MST_to_string(mst_graph);
         }
     } else if (command_of_user == "Newedge") {
         int from, to, weight;
@@ -136,6 +138,23 @@ string graph_user_commands(string input_user) {
             ans += "Edge reduced with id " + to_string(id) + " to weight " + to_string(newWeight) + "\n";
         } else {
             ans += "No graph found for reducing edge.\n";
+        }
+    }  // Leader-Follower with shared answer and mutex
+    else if (command_of_user == "Leader_Follower") {
+        if (!isMST) {
+            ans += "No MST found.\n";
+        } else {
+            ThreadPool threadPool(4, mst_graph, sharedAns, mtxAns);
+
+            threadPool.addEventHandler(LONGEST_PATH);
+            threadPool.addEventHandler(SHORTEST_PATH);
+            threadPool.addEventHandler(AVERAGE_PATH);
+            threadPool.addEventHandler(TOTAL_WEIGHT);
+            threadPool.stop();  // Make sure to stop threads properly
+
+            // Now append the accumulated shared answer to the main answer
+            ans += sharedAns.str();
+            cout << "Leader Follower events processed.\n";
         }
     } else {
         ans += "Unknown command.\n";
@@ -221,7 +240,6 @@ build_random_connected_graph(int n, int m, unsigned int seed) {
 //     return 0;
 // }
 
-
 int main() {
     int listener = -1;                      // listening socket descriptor
     struct sockaddr_storage clientAddress;  // client address
@@ -295,7 +313,7 @@ int main() {
             string client_input = string(buf);
             string ans = graph_user_commands(client_input);
 
-            cout << "Response to client: " << ans << endl;
+            cout << "Response to client: \n" << ans << endl;
             if (send(newfd, ans.c_str(), ans.size(), 0) == -1) {
                 perror("send");
             }

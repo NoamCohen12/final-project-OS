@@ -4,7 +4,7 @@ CXX = clang++
 
 all: main 
 
-main: main.o union_find.o Graph.o GraphGUI.o MST_graph.o MST_stats.o MST_strategy.o
+main: main.o union_find.o Graph.o GraphGUI.o MST_graph.o MST_stats.o MST_strategy.o ThreadPool.o ThreadPool.o
 	$(CXX) -o $@ $^ -lsfml-graphics -lsfml-window -lsfml-system
 
 main.o: main.cpp
@@ -27,6 +27,9 @@ union_find.o: union_find.cpp
 	
 Graph.o: Graph.cpp
 	$(CXX) -c -o $@ $^ 
+
+ThreadPool.o: ThreadPool.cpp
+	$(CXX) -c -o $@ $^ 	
 
 
 

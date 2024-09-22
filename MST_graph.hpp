@@ -21,6 +21,7 @@ using namespace std;
     public:
     MST_graph(){};  // Default constructor
     MST_graph(int n) : numVertices(n) {}
+    MST_graph(vector<tuple<int, int, int, int>> edges); 
     vector<tuple<int, int, int, int>> getEdges() const {
         return edges;
     }

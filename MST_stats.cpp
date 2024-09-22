@@ -29,7 +29,7 @@ int MST_stats::getShortestDistance(const MST_graph& mst) {
     int shortestDistance = INT_MAX;
     for (int i = 0; i < alldistances.size(); i++) {
         for (int j = 0; j < alldistances[i].size(); j++) {
-            if (alldistances[i][j] < shortestDistance) {
+            if (alldistances[i][j] < shortestDistance && alldistances[i][j]!=0) {
                 shortestDistance = alldistances[i][j];
             }
         }
