@@ -23,7 +23,7 @@
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
 #include "MST_strategy.hpp"
-#include "Pipeline.hpp"
+#include "Pipeline.cpp"
 #include "ThreadPool.hpp"
 #include "union_find.hpp"
 #define PORT "9034"  // port we're listening on
@@ -33,6 +33,7 @@ Graph sharedGraph;  // Shared graph for all clients
 mutex mtx;
 MST_strategy mst;
 MST_graph mst_graph;
+MST_stats stats;
 bool isMST = false;
 
 // assume the input is in the form of "Newgraph n m u v w"
@@ -157,53 +158,31 @@ string graph_user_commands(string input_user) {
             ans += sharedAns.str();
             cout << "Leader Follower events processed.\n";
         }
-    } else if (command_of_user == "Pipeline") {
-        if (!isMST) {
-            ans += "No MST found.\n";
-        } else {
-            std::cout << "Debug: Entering Pipeline command processing.\n";
-            MST_stats mst_stats;
-            Pipeline pipeline(mst_graph, sharedAns, mtxAns);  // Assuming your Pipeline class accepts these parameters
-
-            pipeline.addTask([&mst_stats, &sharedAns, &mtxAns]() {
-                std::lock_guard<std::mutex> lock(mtxAns);  // Ensure thread safety
-                std::cout << "Debug: Calculating longest path.\n";
-                sharedAns << "Longest path: " << mst_stats.getLongestDistance(mst_graph) << "\n";
-            });
-            
-
-            pipeline.addTask([&mst_stats, &sharedAns, &mtxAns]() {
-                std::lock_guard<std::mutex> lock(mtxAns);  // Ensure thread safety
-                std::cout << "Debug: Calculating shortest path.\n";
-                sharedAns << "Shortest path: " << mst_stats.getShortestDistance(mst_graph) << "\n";
-            });
-
-            pipeline.addTask([&mst_stats, &sharedAns, &mtxAns]() {
-                std::lock_guard<std::mutex> lock(mtxAns);  // Ensure thread safety
-                std::cout << "Debug: Calculating average path.\n";
-                sharedAns << "Average path: " << mst_stats.getAverageDistance(mst_graph) << "\n";
-            });
-
-            pipeline.addTask([&mst_stats, &sharedAns, &mtxAns]() {
-                std::lock_guard<std::mutex> lock(mtxAns);  // Ensure thread safety
-                std::cout << "Debug: Calculating total weight.\n";
-                sharedAns << "Total weight: " << mst_stats.getTotalWeight(mst_graph) << "\n";
-            });
-            cout << "Pipeline events added.\n";
-            pipeline.stop();  // Make sure to stop the pipeline properly
-            cout << "Pipeline stopped.\n";
-            // Append the accumulated result to the answer
-            ans += sharedAns.str();
-
-            std::cout << "Debug: Pipeline events processed.\n";
-        }
+   } else if (command_of_user == "Pipeline") {
+    if (!isMST) {
+        ans += "No MST found.\n";
     } else {
-        ans += "Unknown command.\n";
-    }
+        std::ostringstream sharedAns_;
+        Pipeline pipeline(sharedAns_);
 
-    return ans;
+        // Add tasks based on the client's request
+        pipeline.addStage(std::make_unique<ComputeTotalWeight>());
+        pipeline.addStage(std::make_unique<ComputeLongestDistance>());
+        pipeline.addStage(std::make_unique<ComputeShortestDistance>());
+        pipeline.addStage(std::make_unique<ComputeAverageDistance>());
+
+        // Process the pipeline
+        pipeline.process(mst_graph, stats);
+
+        // The `sharedAns_` will now contain the result to return to the client
+        ans += sharedAns_.str();  // Append the shared output to ans
+    }
+} else {
+    ans += "Unknown command.\n";
 }
 
+return ans;
+}
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
     if (sa->sa_family == AF_INET) {
@@ -212,8 +191,7 @@ void *get_in_addr(struct sockaddr *sa) {
     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
 }
 
-vector<tuple<int, int, int, int>>
-build_random_connected_graph(int n, int m, unsigned int seed) {
+vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, unsigned int seed) {
     srand(seed);
     assert(m >= (n - 1));
     assert(1ll * m <= (1ll * n * (n - 1)) / 2);

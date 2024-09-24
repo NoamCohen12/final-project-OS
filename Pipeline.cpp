@@ -1,53 +1,66 @@
-#include "Pipeline.hpp"
+#include <iostream>
+#include <memory>
+#include <vector>
+#include <sstream> // For std::ostringstream
+#include "MST_graph.hpp"
+#include "MST_stats.hpp"
 
-Pipeline::Pipeline(const MST_graph& mst, std::ostringstream& sharedAns, std::mutex& mtxAns)
-    : stopFlag(false), mst_(mst), sharedAns_(sharedAns), mtxAns_(mtxAns) {
-    // Launch worker thread that will run tasks
-    workerThread_ = std::thread(&Pipeline::runTasks, this);
-}
+// Pipeline Task interface
+class PipelineTask {
+public:
+    virtual void execute(const MST_graph& mst, MST_stats& stats, std::ostringstream& output) = 0;
+    virtual ~PipelineTask() = default;
+};
 
-Pipeline::~Pipeline() {
-    stop();  // Stop the pipeline when it's destroyed
-    if (workerThread_.joinable()) {
-        workerThread_.join();  // Ensure the thread finishes
+// Concrete task implementations
+class ComputeTotalWeight : public PipelineTask {
+public:
+    void execute(const MST_graph& mst, MST_stats& stats, std::ostringstream& output) override {
+        int totalWeight = stats.getTotalWeight(mst);
+        output << "Total Weight: " << totalWeight << "\n";
     }
-}
+};
 
-void Pipeline::addTask(std::function<void()> task) {
-    {
-        std::lock_guard<std::mutex> lock(mtx_);
-        tasks_.push(task);
-        std::cout << "Debug: Task added to queue. Queue size: " << tasks_.size() << std::endl;
+class ComputeLongestDistance : public PipelineTask {
+public:
+    void execute(const MST_graph& mst, MST_stats& stats, std::ostringstream& output) override {
+        int longestDistance = stats.getLongestDistance(mst);
+        output << "Longest Distance: " << longestDistance << "\n";
     }
-    cv_.notify_one();
-}
+};
 
-void Pipeline::runTasks() {
-    while (true) {
-        std::function<void()> task;
-        {
-            std::unique_lock<std::mutex> lock(mtx_);
-            cv_.wait(lock, [this] { return !tasks_.empty() || stopFlag; });
+// Additional task classes (ComputeShortestDistance, ComputeAverageDistance)
+class ComputeShortestDistance : public PipelineTask {
+public:
+    void execute(const MST_graph& mst, MST_stats& stats, std::ostringstream& output) override {
+        int shortestDistance = stats.getShortestDistance(mst);
+        output << "Shortest Distance: " << shortestDistance << "\n";
+    }
+};
 
-            if (stopFlag && tasks_.empty()) {
-                return; // Exit the thread
-            }
+class ComputeAverageDistance : public PipelineTask {
+public:
+    void execute(const MST_graph& mst, MST_stats& stats, std::ostringstream& output) override {
+        double averageDistance = stats.getAverageDistance(mst);
+        output << "Average Distance: " << averageDistance << "\n";
+    }
+};
 
-            task = tasks_.front();
-            tasks_.pop();
+// Pipeline manager
+class Pipeline {
+    std::ostringstream& sharedAns_;  // Reference to shared output stream
+    std::vector<std::unique_ptr<PipelineTask>> stages;
+
+public:
+    Pipeline(std::ostringstream& sharedAns) : sharedAns_(sharedAns) {}
+
+    void addStage(std::unique_ptr<PipelineTask> task) {
+        stages.push_back(std::move(task));
+    }
+
+    void process(const MST_graph& mst, MST_stats& stats) {
+        for (auto& stage : stages) {
+            stage->execute(mst, stats, sharedAns_);
         }
-
-        task();  // Execute the task
-
-        std::cout << "Debug: Task executed." << std::endl;
     }
-}
-
-void Pipeline::stop() {
-    {
-        std::lock_guard<std::mutex> lock(mtx_);
-        stopFlag = true;
-        std::cout << "Debug: Stop flag set." << std::endl;
-    }
-    cv_.notify_all();
-}
+};
