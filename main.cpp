@@ -158,30 +158,35 @@ string graph_user_commands(string input_user) {
             ans += sharedAns.str();
             cout << "Leader Follower events processed.\n";
         }
-   } else if (command_of_user == "Pipeline") {
-    if (!isMST) {
-        ans += "No MST found.\n";
+    } else if (command_of_user == "Pipeline") {
+        if (!isMST) {
+            ans += "No MST found.\n";
+        } else {
+            std::ostringstream sharedAns_;
+            Pipeline pipeline(4, mst_graph, sharedAns_, mtxAns);
+            // Add tasks to the pipeline
+            pipeline.addTask([&]() {
+                sharedAns_ << "Longest distance: " << stats.getLongestDistance(mst_graph) << std::endl;
+            });
+            pipeline.addTask([&]() {
+                sharedAns_ << "Shortest distance: " << stats.getShortestDistance(mst_graph) << std::endl;
+            });
+            pipeline.addTask([&]() {
+                sharedAns_ << "Average distance: " << stats.getAverageDistance(mst_graph) << std::endl;
+            });
+            pipeline.addTask([&]() {
+                sharedAns_ << "Total weight: " << stats.getTotalWeight(mst_graph) << std::endl;
+            });
+
+            pipeline.runTasks();
+            pipeline.stop();  // Stop the pipeline
+            ans += sharedAns_.str();  // Append the shared output to ans
+        }
     } else {
-        std::ostringstream sharedAns_;
-        Pipeline pipeline(sharedAns_);
-
-        // Add tasks based on the client's request
-        pipeline.addStage(std::make_unique<ComputeTotalWeight>());
-        pipeline.addStage(std::make_unique<ComputeLongestDistance>());
-        pipeline.addStage(std::make_unique<ComputeShortestDistance>());
-        pipeline.addStage(std::make_unique<ComputeAverageDistance>());
-
-        // Process the pipeline
-        pipeline.process(mst_graph, stats);
-
-        // The `sharedAns_` will now contain the result to return to the client
-        ans += sharedAns_.str();  // Append the shared output to ans
+        ans += "Unknown command.\n";
     }
-} else {
-    ans += "Unknown command.\n";
-}
 
-return ans;
+    return ans;
 }
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
