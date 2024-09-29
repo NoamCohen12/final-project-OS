@@ -3,14 +3,6 @@
 #include <chrono>
 #include <iostream>
 
-// ThreadPool::ThreadPool(int numThreads) : numThreads_(numThreads), stopFlag_(false) {
-//     for (int i = 0; i < numThreads_; ++i) {
-//         // Create threads and add their IDs to the queue
-//         workers_.emplace_back(&ThreadPool::leaderRole, this);
-//         threadQueue_.push(workers_.back().get_id());
-//     }
-// }
-
 // Update constructor to accept shared answer stream and mutex
 ThreadPool::ThreadPool(int numThreads, const MST_graph& mst, std::ostringstream& sharedAns, std::mutex& mtxAns)
     : numThreads_(numThreads), stopFlag_(false), sharedAns_(sharedAns), mtxAns_(mtxAns) {
@@ -82,7 +74,7 @@ void ThreadPool::leaderRole() {
                 default:
                     localAns << "Thread " << currentThreadId << " Unknown event type\n";
             }
-            //add a sleep
+            // add a sleep
             std::this_thread::sleep_for(std::chrono::seconds(1));
             // Append the local answer to the shared string in a thread-safe way
             {
@@ -101,11 +93,6 @@ void ThreadPool::followerRole() {
     cv_.notify_one();
 }
 
-// void ThreadPool::stop() {
-//     std::lock_guard<std::mutex> lock(mtx_);
-//     stopFlag_ = true;
-//     cv_.notify_all();  // Wake up all threads so they can stop
-// }
 // Method to gracefully stop the thread pool
 void ThreadPool::stop() {
     {

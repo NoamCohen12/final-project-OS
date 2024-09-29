@@ -1,151 +1,150 @@
-#ifndef PIPELINE_HPP
-#define PIPELINE_HPP
 
-#include <chrono>
+
 #include <condition_variable>
 #include <functional>
-#include <future>
 #include <iostream>
 #include <memory>
 #include <mutex>
 #include <queue>
 #include <sstream>
-#include <string>
 #include <thread>
 #include <vector>
 
+#include "Graph.cpp"
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
+#include "MST_strategy.hpp"
 
-// ActiveObject class definition
+// ActiveObject class that processes a task
 class ActiveObject {
-   private:
     std::thread workerThread;
-    std::queue<MST_graph*> trees;
+    std::queue<std::function<void()>> tasks;
     std::mutex mtx;
     std::condition_variable cv;
-    std::function<void()> task_;  // Task to execute
     bool stopFlag;
 
    public:
-    // Default constructor
-    ActiveObject() : stopFlag(false) {}
-
-    // Constructor to initialize with a task
-    ActiveObject(std::function<void()> task) : task_(task), stopFlag(false) {
-        workerThread = std::thread(&ActiveObject::runTasks_obj, this);
+    ActiveObject() : stopFlag(false) {
+        workerThread = std::thread(&ActiveObject::runTasks, this);
     }
 
-    // Destructor
     ~ActiveObject() {
-        stop();
-        if (workerThread.joinable()) {
-            workerThread.join();
-        }
-    }
-
-    // Add tree to the queue
-    void addTree(MST_graph* tree) {
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            trees.push(tree);
-        }
-        cv.notify_one();
-    }
-
-    // Get tree from the queue
-    MST_graph* getTree() {
-        std::lock_guard<std::mutex> lock(mtx);
-        if (trees.empty()) {
-            return nullptr;
-        }
-        MST_graph* tree = trees.front();
-        trees.pop();
-        return tree;
-    }
-
-    // Stop the ActiveObject
-    void stop() {
         {
             std::lock_guard<std::mutex> lock(mtx);
             stopFlag = true;
+            cv.notify_one();
         }
-        cv.notify_all();
+        workerThread.join();
     }
 
-    // Run tasks
-    void runTasks_obj() {
+    void addTask(std::function<void()> task) {
+        std::lock_guard<std::mutex> lock(mtx);
+        tasks.push(task);
+        cv.notify_one();
+    }
+
+    void runTasks() {
         while (true) {
-            MST_graph* tree = nullptr;
+            std::function<void()> task;
             {
                 std::unique_lock<std::mutex> lock(mtx);
-                cv.wait(lock, [this] { return !trees.empty() || stopFlag; });
+                cv.wait(lock, [this] { return !tasks.empty() || stopFlag; });
 
-                if (stopFlag && trees.empty()) {
+                if (stopFlag && tasks.empty())
                     return;
-                }
-                tree = trees.front();
-                trees.pop();
-            }
 
-            // Execute the task
-            task_();  // Execute the task
-            delete tree;
+                task = tasks.front();
+                tasks.pop();
+            }
+            task();  // Execute the task
         }
     }
 };
 
-// Pipeline class definition
+// Pipeline class that manages multiple ActiveObjects (workers)
 class Pipeline {
-   private:
-    int num_of_objects;
-    std::vector<std::unique_ptr<ActiveObject>> activeObjects;  // Use unique_ptr for ActiveObject
     std::mutex mtx_;
     std::condition_variable cv_;
-    bool stopFlag;
-    MST_graph mst_;
-    std::ostringstream& sharedAns_;  // Shared output
-    std::mutex& mtxAns_;
+    bool completed = false;
+    std::vector<std::unique_ptr<ActiveObject>> activeObjects;
+    std::ostringstream& sharedAns;  // Change the type to std::ostringstream
+    // Task 1: Construct MST from graph
+    MST_graph task1(Graph& graph) {
+        MST_strategy MST_strategy;
+        return MST_strategy.prim(graph.getEdges(), graph.getnumVertices());  // MST creation using Prim's algorithm
+    }
+
+    // Task 2-5: MST statistics
+    std::string task2(const MST_graph& mst_graph) {
+        MST_stats stats;
+        return to_string(stats.getLongestDistance(mst_graph));
+    }
+
+    std::string task3(const MST_graph& mst_graph) {
+        MST_stats stats;
+        return to_string(stats.getShortestDistance(mst_graph));
+    }
+
+    std::string task4(const MST_graph& mst_graph) {
+        MST_stats stats;
+        return to_string(stats.getAverageDistance(mst_graph));
+    }
+
+    std::string task5(const MST_graph& mst_graph) {
+        MST_stats stats;
+        return to_string(stats.getTotalWeight(mst_graph));
+    }
 
    public:
-    Pipeline(int num_of_objects, MST_graph& mst, std::ostringstream& sharedAns, std::mutex& mtxAns)
-        : mst_(mst), sharedAns_(sharedAns), mtxAns_(mtxAns), stopFlag(false), num_of_objects(num_of_objects) {
-        // Reserve space for unique_ptrs to active objects
-
-        activeObjects.reserve(num_of_objects);
+    Pipeline(std::ostringstream& sharedAns) : sharedAns(sharedAns) {
+        // Create ActiveObjects (workers) for each task
+        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 1
+        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 2
+        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 3
+        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 4
+        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 5
     }
 
-void addTask(std::function<void()> task) {
-    {
-        std::lock_guard<std::mutex> lock(mtx_);
-        // Add new ActiveObject to vector using std::make_unique
-        activeObjects.emplace_back(std::make_unique<ActiveObject>(std::move(task)));
-        std::cout << "Debug: Task added to active object. Total active objects: " << activeObjects.size() << std::endl;
-    }
-    cv_.notify_one();
+    void processGraph(Graph& graph) {
+        std::unique_lock<std::mutex> lock(mtx_);
+    completed = false;  // Reset the completion flag
+
+    // Start by creating an MST from the graph
+    activeObjects[0]->addTask([this, &graph]() {
+        MST_graph mst_graph = task1(graph);
+        sharedAns << mst_graph.to_string() << std::endl;
+        std::cout << "MST created" << std::endl;
+
+        // Pass result to next stage (longest distance)
+        activeObjects[1]->addTask([this, mst_graph]() {
+            sharedAns << "Longest Distance: " << task2(mst_graph) << std::endl;
+
+            // Pass result to next stage (shortest distance)
+            activeObjects[2]->addTask([this, mst_graph]() {
+                sharedAns << "Shortest Distance: " << task3(mst_graph) << std::endl;
+
+                // Pass result to next stage (average distance)
+                activeObjects[3]->addTask([this, mst_graph]() {
+                    sharedAns << "Average Distance: " << task4(mst_graph) << std::endl;
+
+                    // Pass result to next stage (total weight)
+                    activeObjects[4]->addTask([this, mst_graph]() {
+                        sharedAns << "Total Weight: " << task5(mst_graph) << std::endl;
+
+                        // Notify the main thread that processing is complete
+                        std::unique_lock<std::mutex> lock(mtx_);
+                        completed = true;
+                        cv_.notify_one();
+                    });
+                });
+            });
+        });
+    });
 }
 
-
-void stop() {
-    {
-        std::lock_guard<std::mutex> lock(mtx_);
-        stopFlag = true;
-    }
-    cv_.notify_all();
-
-    // Stop all active objects
-    for (auto& obj : activeObjects) {
-        obj->stop();
-    }
-}    void runTasks() {
-        // Iterate over all active objects and run tasks on the tree
-        for (int i = 0; i < num_of_objects; ++i) {
-            activeObjects[i]->runTasks_obj();
-            if (i + 1 < activeObjects.size()) {
-                activeObjects[i + 1]->addTree(activeObjects[i]->getTree());  // Transfer tree to next object
-            }
-        }
-    }
+std::string waitForCompletion() {
+    std::unique_lock<std::mutex> lock(mtx_);
+    cv_.wait(lock, [this] { return completed; });
+    return sharedAns.str();
+}
 };
-
-#endif  // PIPELINE_HPP

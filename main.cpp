@@ -67,8 +67,11 @@ string MST_to_string(const MST_graph &mst) {
 string graph_user_commands(string input_user) {
     // Shared string to accumulate results
     std::ostringstream sharedAns;
-    std::mutex mtxAns;
+    std::ostringstream sharedAns_;
 
+    std::mutex mtxAns;
+    //  Pipeline Pipeline(sharedAns, mtxAns);  // Create a pipeline object
+    Pipeline pipeline(sharedAns_);
     string ans;
     string command_of_user;
     istringstream iss(input_user);
@@ -162,25 +165,13 @@ string graph_user_commands(string input_user) {
         if (!isMST) {
             ans += "No MST found.\n";
         } else {
-            std::ostringstream sharedAns_;
-            Pipeline pipeline(4, mst_graph, sharedAns_, mtxAns);
-            // Add tasks to the pipeline
-            pipeline.addTask([&]() {
-                sharedAns_ << "Longest distance: " << stats.getLongestDistance(mst_graph) << std::endl;
-            });
-            pipeline.addTask([&]() {
-                sharedAns_ << "Shortest distance: " << stats.getShortestDistance(mst_graph) << std::endl;
-            });
-            pipeline.addTask([&]() {
-                sharedAns_ << "Average distance: " << stats.getAverageDistance(mst_graph) << std::endl;
-            });
-            pipeline.addTask([&]() {
-                sharedAns_ << "Total weight: " << stats.getTotalWeight(mst_graph) << std::endl;
-            });
+            // Simulate clients sending graphs
+            pipeline.processGraph(sharedGraph);
+            // Wait for the pipeline to finish processing
+            string ans_pipeline = pipeline.waitForCompletion();
 
-            pipeline.runTasks();
-            pipeline.stop();  // Stop the pipeline
-            ans += sharedAns_.str();  // Append the shared output to ans
+            // Append the processed result to ans
+            ans += ans_pipeline;
         }
     } else {
         ans += "Unknown command.\n";
@@ -237,35 +228,9 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     return random_graph;
 }
 
-// int main(int argc, char *argv[]) {
-//     if (argc != 4) {
-//         std::cerr << "Usage: " << argv[0] << " <n> <m> <seed>" << std::endl;
-//         return 1;
-//     }
 
-//     int n = std::stoi(argv[1]);
-//     int m = std::stoi(argv[2]);
-//     unsigned int seed = std::stoul(argv[3]);
 
-//     MST mst;
-//     Graph graph(n);
-//     vector<tuple<int, int, int, int>> mst_result = mst.prim(graph);
-//     mst.printMST(mst_result);
-
-//     // Define vertices (for example, positions of points)
-//     std::vector<sf::Vector2f> vertices;
-//     for (int i = 0; i < n; ++i) {
-//         vertices.emplace_back(100.f + (i * 200.f), 100.f + ((i % 2) * 200.f));
-//     }
-
-//     // Create the Graph GUI and run it
-//     GraphGUI graphGUI(vertices, graph, mst_result);
-//     graphGUI.run();
-
-//     return 0;
-// }
-
-int main() {
+ int main(int argc, char *argv[]) {
     int listener = -1;                      // listening socket descriptor
     struct sockaddr_storage clientAddress;  // client address
     socklen_t addrlen;
@@ -331,7 +296,7 @@ int main() {
         inet_ntop(clientAddress.ss_family, get_in_addr((struct sockaddr *)&clientAddress), remoteIP, INET6_ADDRSTRLEN);
         cout << "selectserver: new connection from " << remoteIP << endl;
 
-        char buf[2048];
+        char buf[2048]; 
         int nbytes;
         while ((nbytes = recv(newfd, buf, sizeof(buf), 0)) > 0) {
             buf[nbytes] = '\0';
@@ -357,3 +322,4 @@ int main() {
     close(listener);
     return 0;
 }
+

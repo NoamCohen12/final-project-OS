@@ -1,3 +1,5 @@
+#ifndef GRAPH_HPP 
+#define GRAPH_HPP
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -62,5 +64,6 @@ class Graph {
     }
 
 };
+#endif // GRAPH_HPP
 
 
