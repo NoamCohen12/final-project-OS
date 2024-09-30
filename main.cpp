@@ -228,16 +228,27 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     return random_graph;
 }
 
+int main() {
+    fd_set master;    // master file descriptor list
+    fd_set read_fds;  // temp file descriptor list for select()
+    int fdmax;        // maximum file descriptor number
 
-
- int main(int argc, char *argv[]) {
-    int listener = -1;                      // listening socket descriptor
+    int listener;                           // listening socket descriptor
+    int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
     socklen_t addrlen;
+
+    char buf[2048];  // buffer for client data
+    int nbytes;
+
     char remoteIP[INET6_ADDRSTRLEN];
     int yes = 1;  // for setsockopt() SO_REUSEADDR, below
-    int rv;
+    int i, j, rv;
+
     struct addrinfo hints, *ai, *p;
+
+    FD_ZERO(&master);  // clear the master and temp sets
+    FD_ZERO(&read_fds);
 
     // get us a socket and bind it
     memset(&hints, 0, sizeof hints);
@@ -256,19 +267,15 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
         }
 
         // lose the pesky "address already in use" error message
-        if (setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-            perror("setsockopt");
-            exit(1);
-        }
+        setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+
         if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
             close(listener);
             continue;
         }
-
         break;
     }
 
-    // if we got here, it means we didn't get bound
     if (p == NULL) {
         cerr << "selectserver: failed to bind" << endl;
         exit(2);
@@ -279,47 +286,76 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     // listen
     if (listen(listener, 10) == -1) {
         perror("listen");
-        close(listener);
         exit(3);
     }
 
+    // add the listener to the master set
+    FD_SET(listener, &master);
+
+    // keep track of the biggest file descriptor
+    fdmax = listener;  // so far, it's this one
+
     cout << "Server is listening on port " << PORT << endl;
 
-    while (true) {
-        addrlen = sizeof clientAddress;
-        int newfd = accept(listener, (struct sockaddr *)&clientAddress, &addrlen);
-        if (newfd == -1) {
-            perror("accept");
-            continue;
+    // main loop
+    for (;;) {
+        read_fds = master;  // copy it
+        if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
+            perror("select");
+            exit(4);
         }
 
-        inet_ntop(clientAddress.ss_family, get_in_addr((struct sockaddr *)&clientAddress), remoteIP, INET6_ADDRSTRLEN);
-        cout << "selectserver: new connection from " << remoteIP << endl;
+        // run through the existing connections looking for data to read
+        for (i = 0; i <= fdmax; i++) {
+            if (FD_ISSET(i, &read_fds)) {  // we got one!!
+                if (i == listener) {
+                    // handle new connections
+                    addrlen = sizeof clientAddress;
+                    newfd = accept(listener, (struct sockaddr *)&clientAddress, &addrlen);
 
-        char buf[2048]; 
-        int nbytes;
-        while ((nbytes = recv(newfd, buf, sizeof(buf), 0)) > 0) {
-            buf[nbytes] = '\0';
-            string client_input = string(buf);
-            string ans = graph_user_commands(client_input);
+                    if (newfd == -1) {
+                        perror("accept");
+                    } else {
+                        FD_SET(newfd, &master);  // add to master set
+                        if (newfd > fdmax) {     // keep track of the max
+                            fdmax = newfd;
+                        }
+                        cout << "selectserver: new connection from "
+                             << inet_ntop(clientAddress.ss_family,
+                                          get_in_addr((struct sockaddr *)&clientAddress),
+                                          remoteIP, INET6_ADDRSTRLEN)
+                             << " on socket " << newfd << endl;
+                    }
+                } else {
+                    // handle data from a client
+                    if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
+                        // got error or connection closed by client
+                        if (nbytes == 0) {
+                            // connection closed
+                            cout << "selectserver: socket " << i << " hung up" << endl;
+                        } else {
+                            perror("recv");
+                        }
+                        close(i);            // bye!
+                        FD_CLR(i, &master);  // remove from master set
+                    } else {
+                        // we got some data from a client
+                        buf[nbytes] = '\0';  // Null-terminate the input
+                        string client_input = string(buf);
+                        cout << "Received from client: " << client_input << endl;
 
-            cout << "Response to client: \n"
-                 << ans << endl;
-            if (send(newfd, ans.c_str(), ans.size(), 0) == -1) {
-                perror("send");
-            }
-        }
+                        string ans = graph_user_commands(client_input);
+                        cout << "Response to client: " << ans << endl;
 
-        if (nbytes == 0) {
-            cout << "selectserver: socket " << newfd << " hung up" << endl;
-        } else if (nbytes < 0) {
-            perror("recv");
-        }
+                        // send the response to this specific client
+                        if (send(i, ans.c_str(), ans.size(), 0) == -1) {
+                            perror("send");
+                        }
+                    }
+                }  // END handle data from client
+            }  // END got new incoming connection
+        }  // END looping through file descriptors
+    }  // END for(;;)
 
-        close(newfd);
-    }
-
-    close(listener);
     return 0;
 }
-
