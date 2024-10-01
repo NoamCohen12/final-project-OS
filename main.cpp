@@ -3,6 +3,7 @@
 #include <netinet/in.h>  // Include for sockaddr_in and sockaddr_in6
 #include <sys/socket.h>  // Include for sockaddr
 #include <unistd.h>      // Include for close
+#include <csignal>  // For signal handling (e.g., SIGINT)
 
 #include <algorithm>
 #include <cassert>
@@ -28,13 +29,27 @@
 #include "union_find.hpp"
 #define PORT "9034"  // port we're listening on
 using namespace std;
+unordered_map<int, Graph> map_clients;  // Each client gets its own graph
 
-Graph sharedGraph;  // Shared graph for all clients
+//Graph clientGraph;  // Shared graph for all clients
 mutex mtx;
 MST_strategy mst;
 MST_graph mst_graph;
 MST_stats stats;
 bool isMST = false;
+
+int listener;  // Global listener for shutdown handling
+
+
+
+// Signal handler for graceful shutdown
+void shutdown_handler(int signum) {
+    cout << "\nShutting down the server..." << endl;
+    close(listener);  // Close the listener socket
+    exit(0);  // Exit the program
+}
+
+
 
 // assume the input is in the form of "Newgraph n m u v w"
 // and the input of edge u v with weight w but dont add the reverse edge with weight w'
@@ -64,7 +79,7 @@ string MST_to_string(const MST_graph &mst) {
     return ans;
 }
 
-string graph_user_commands(string input_user) {
+string graph_user_commands(string input_user, Graph& clientGraph) {
     // Shared string to accumulate results
     std::ostringstream sharedAns;
     std::ostringstream sharedAns_;
@@ -91,35 +106,35 @@ string graph_user_commands(string input_user) {
             ans += "Invalid graph parameters. \n";
         } else {
             auto newEdges = Newgraph(iss, n, m);  // Store the result in a local variable
-            sharedGraph.setEdges(newEdges);       // Pass the local variable to setEdges
-            sharedGraph.setnumVertices(n);
+            clientGraph.setEdges(newEdges);       // Pass the local variable to setEdges
+            clientGraph.setnumVertices(n);
             ans += "Graph created:\n";
             for (int i = 0; i < 2 * m; i = i + 2) {
                 int u, v, w, id;
-                tie(u, v, w, id) = sharedGraph.getEdge(i);
+                tie(u, v, w, id) = clientGraph.getEdge(i);
                 ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
             }
         }
     } else if (command_of_user == "MST-P") {
-        if (sharedGraph.getSize() != 0) {
+        if (clientGraph.getSize() != 0) {
             isMST = true;
-            mst_graph = mst.prim(sharedGraph.getEdges(), sharedGraph.getnumVertices());
+            mst_graph = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
             ans += MST_to_string(mst_graph);
             cout << "MST-P completed" << endl;
         }
     } else if (command_of_user == "MST-K") {
         cout << "MST-K n: " << n << endl;
-        if (sharedGraph.getSize() != 0) {
+        if (clientGraph.getSize() != 0) {
             isMST = true;
-            mst_graph = mst.kruskal(sharedGraph.getEdges(), sharedGraph.getnumVertices());
+            mst_graph = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
             ans += MST_to_string(mst_graph);
         }
     } else if (command_of_user == "Newedge") {
         int from, to, weight;
         iss >> from >> to >> weight;
         cout << "Newedge n: " << n << endl;
-        if (sharedGraph.getSize() != 0) {
-            sharedGraph.addEdge(from, to, weight, sharedGraph.getSize());
+        if (clientGraph.getSize() != 0) {
+            clientGraph.addEdge(from, to, weight, clientGraph.getSize());
             ans += "Edge added from " + to_string(from) + " to " + to_string(to) + "\n";
         } else {
             ans += "No graph found for adding edge.\n";
@@ -128,8 +143,8 @@ string graph_user_commands(string input_user) {
         int from, to;
         iss >> from >> to;
         cout << "Removeedge n: " << n << endl;
-        if (sharedGraph.getSize() != 0) {
-            sharedGraph.removeEdge(from, to);
+        if (clientGraph.getSize() != 0) {
+            clientGraph.removeEdge(from, to);
             ans += "Edge removed from " + to_string(from) + " to " + to_string(to) + "\n";
         } else {
             ans += "No graph found for removing edge.\n";
@@ -138,8 +153,8 @@ string graph_user_commands(string input_user) {
         int id, newWeight;
         iss >> id >> newWeight;
         cout << "Reduceedge n: " << n << endl;
-        if (sharedGraph.getSize() != 0) {
-            sharedGraph.reduceEdges(id, newWeight);
+        if (clientGraph.getSize() != 0) {
+            clientGraph.reduceEdges(id, newWeight);
             ans += "Edge reduced with id " + to_string(id) + " to weight " + to_string(newWeight) + "\n";
         } else {
             ans += "No graph found for reducing edge.\n";
@@ -166,7 +181,7 @@ string graph_user_commands(string input_user) {
             ans += "No MST found.\n";
         } else {
             // Simulate clients sending graphs
-            pipeline.processGraph(sharedGraph);
+            pipeline.processGraph(clientGraph);
             // Wait for the pipeline to finish processing
             string ans_pipeline = pipeline.waitForCompletion();
 
@@ -227,28 +242,29 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     assert(static_cast<int>(random_graph.size()) == m);
     return random_graph;
 }
-
 int main() {
     fd_set master;    // master file descriptor list
     fd_set read_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
 
-    int listener;                           // listening socket descriptor
     int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
     socklen_t addrlen;
 
-    char buf[2048];  // buffer for client data
+    char buf[4096];  // buffer for client data (increased size)
     int nbytes;
 
     char remoteIP[INET6_ADDRSTRLEN];
     int yes = 1;  // for setsockopt() SO_REUSEADDR, below
-    int i, j, rv;
+    int i, rv;
 
     struct addrinfo hints, *ai, *p;
 
     FD_ZERO(&master);  // clear the master and temp sets
     FD_ZERO(&read_fds);
+
+    // Set up shutdown signal handler
+    signal(SIGINT, shutdown_handler);
 
     // get us a socket and bind it
     memset(&hints, 0, sizeof hints);
@@ -325,6 +341,10 @@ int main() {
                                           get_in_addr((struct sockaddr *)&clientAddress),
                                           remoteIP, INET6_ADDRSTRLEN)
                              << " on socket " << newfd << endl;
+
+                        // Create a new graph for this client
+                        lock_guard<mutex> lock(mtx);
+                        map_clients[newfd] = Graph();  // Create an empty graph for the new client
                     }
                 } else {
                     // handle data from a client
@@ -337,25 +357,26 @@ int main() {
                             perror("recv");
                         }
                         close(i);            // bye!
-                        FD_CLR(i, &master);  // remove from master set
+                        FD_CLR(i, &master);   // remove from master set
+                        lock_guard<mutex> lock(mtx);
+                        map_clients.erase(i);  // Remove the client's graph
                     } else {
                         // we got some data from a client
-                        buf[nbytes] = '\0';  // Null-terminate the input
-                        string client_input = string(buf);
-                        cout << "Received from client: " << client_input << endl;
+                        buf[nbytes] = '\0';  // null-terminate the buffer
 
-                        string ans = graph_user_commands(client_input);
-                        cout << "Response to client: " << ans << endl;
+                        // Process the command for this client
+                        lock_guard<mutex> lock(mtx);
+                        string response = graph_user_commands(string(buf), map_clients[i]);
 
-                        // send the response to this specific client
-                        if (send(i, ans.c_str(), ans.size(), 0) == -1) {
+                        // Send the response back to the client
+                        if (send(i, response.c_str(), response.length(), 0) == -1) {
                             perror("send");
                         }
                     }
-                }  // END handle data from client
-            }  // END got new incoming connection
-        }  // END looping through file descriptors
-    }  // END for(;;)
+                }
+            }
+        }
+    }
 
     return 0;
 }

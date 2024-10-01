@@ -37,15 +37,19 @@ int MST_stats::getShortestDistance(const MST_graph& mst) {
     return shortestDistance;
 }
 
+//over just on above the diagonal
 double MST_stats::getAverageDistance(const MST_graph& mst) {
     vector<vector<int>> alldistances = mst.getAllDistances();
-    int totalDistance = 0;
-    int numDistances = 0;
+    int sum = 0;
+    int count = 0;
     for (int i = 0; i < alldistances.size(); i++) {
-        for (int j = 0; j < alldistances[i].size(); j++) {
-            totalDistance += alldistances[i][j];
-            numDistances++;
+        for (int j = i + 1; j < alldistances[i].size(); j++) {
+            sum += alldistances[i][j];
+            count++;
         }
     }
-    return static_cast<double>(totalDistance) / numDistances;
+    return (double)sum / count;
 }
+
+
+
