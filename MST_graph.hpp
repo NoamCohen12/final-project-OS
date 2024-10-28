@@ -13,11 +13,12 @@ class MST_graph {
     vector<tuple<int, int, int, int>> edges;  // (from, to, weight, id)
     int numVertices;
     vector<vector<int>> alldistances;  // all distances between vertices
+    string strategy;
 
    public:
     MST_graph() {};  // Default constructor
     MST_graph(int n) : numVertices(n) {}
-    MST_graph(vector<tuple<int, int, int, int>> edges);
+    MST_graph(vector<tuple<int, int, int, int>> edges,string strategy);
     vector<tuple<int, int, int, int>> getEdges() const {
         return edges;
     }
@@ -25,6 +26,8 @@ class MST_graph {
         return alldistances;
     }
     string to_string() const ;
-     
+    string getStrategy() const {
+        return strategy;
+    }
     };
 #endif  // MST_GRAPH_HPP

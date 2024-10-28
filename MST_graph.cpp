@@ -55,10 +55,11 @@ vector<vector<int>> calculateWeightMatrix(int n, const vector<tuple<int, int, in
     return weightMatrix;
 }
 
-MST_graph::MST_graph(vector<tuple<int, int, int, int>> edges) {
+MST_graph::MST_graph(vector<tuple<int, int, int, int>> edges, string strategy) {
     this->edges = edges;
     numVertices = edges.size() + 1;
     alldistances = calculateWeightMatrix(edges.size() + 1, edges);
+    this->strategy = strategy;
 }
 
 // Function to convert the MST graph to a string

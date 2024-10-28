@@ -3,10 +3,10 @@
 #include <netinet/in.h>  // Include for sockaddr_in and sockaddr_in6
 #include <sys/socket.h>  // Include for sockaddr
 #include <unistd.h>      // Include for close
-#include <csignal>  // For signal handling (e.g., SIGINT)
 
 #include <algorithm>
 #include <cassert>
+#include <csignal>  // For signal handling (e.g., SIGINT)
 #include <cstring>  // Include for memset
 #include <ctime>
 #include <iostream>
@@ -16,6 +16,7 @@
 #include <set>
 #include <sstream>  // Include the necessary header for istringstream
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -27,29 +28,27 @@
 #include "Pipeline.cpp"
 #include "ThreadPool.hpp"
 #include "union_find.hpp"
-#define PORT "9034"  // port we're listening on
+#define PORT "9034"    // port we're listening on
+#define NUM_THREADS 4  // Number of threads in the thread pool
 using namespace std;
-unordered_map<int, Graph> map_clients;  // Each client gets its own graph
+unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client gets its own graph
 
-//Graph clientGraph;  // Shared graph for all clients
 mutex mtx;
 MST_strategy mst;
-MST_graph mst_graph;
 MST_stats stats;
 bool isMST = false;
+// std::ostringstream sharedAns;
+
+ThreadPool threadPool(NUM_THREADS);  // Create a thread pool object
 
 int listener;  // Global listener for shutdown handling
-
-
 
 // Signal handler for graceful shutdown
 void shutdown_handler(int signum) {
     cout << "\nShutting down the server..." << endl;
     close(listener);  // Close the listener socket
-    exit(0);  // Exit the program
+    exit(0);          // Exit the program
 }
-
-
 
 // assume the input is in the form of "Newgraph n m u v w"
 // and the input of edge u v with weight w but dont add the reverse edge with weight w'
@@ -71,20 +70,20 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
 string MST_to_string(const MST_graph &mst) {
     string ans;
     vector<tuple<int, int, int, int>> edges = mst.getEdges();
+    
+    ans+="MST created:\n";
     for (const auto &e : edges) {
         int u, v, w, id;
         tie(u, v, w, id) = e;
         ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
     }
+    
+    
     return ans;
 }
-
-string graph_user_commands(string input_user, Graph& clientGraph) {
+string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &clientMST, string &clientAns) {
     // Shared string to accumulate results
-    std::ostringstream sharedAns;
     std::ostringstream sharedAns_;
-
-    std::mutex mtxAns;
     //  Pipeline Pipeline(sharedAns, mtxAns);  // Create a pipeline object
     Pipeline pipeline(sharedAns_);
     string ans;
@@ -93,6 +92,7 @@ string graph_user_commands(string input_user, Graph& clientGraph) {
     iss >> command_of_user;
 
     int n, m;
+    string strategy;
 
     if (command_of_user.empty()) {
         ans += "No command received.\n";
@@ -114,20 +114,18 @@ string graph_user_commands(string input_user, Graph& clientGraph) {
                 tie(u, v, w, id) = clientGraph.getEdge(i);
                 ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
             }
-        }
-    } else if (command_of_user == "MST-P") {
-        if (clientGraph.getSize() != 0) {
-            isMST = true;
-            mst_graph = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
-            ans += MST_to_string(mst_graph);
-            cout << "MST-P completed" << endl;
-        }
-    } else if (command_of_user == "MST-K") {
-        cout << "MST-K n: " << n << endl;
-        if (clientGraph.getSize() != 0) {
-            isMST = true;
-            mst_graph = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
-            ans += MST_to_string(mst_graph);
+            iss >> strategy;
+            if (strategy == "prim") {
+                clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
+                isMST = true;
+                ans+=MST_to_string(clientMST);
+            } else if (strategy == "kruskal") {
+                clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
+                isMST = true;
+                ans+=MST_to_string(clientMST);
+            } else {
+                ans += "Invalid strategy.\n";
+            }
         }
     } else if (command_of_user == "Newedge") {
         int from, to, weight;
@@ -136,7 +134,16 @@ string graph_user_commands(string input_user, Graph& clientGraph) {
         if (clientGraph.getSize() != 0) {
             clientGraph.addEdge(from, to, weight, clientGraph.getSize());
             ans += "Edge added from " + to_string(from) + " to " + to_string(to) + "\n";
-        } else {
+            // update the mst graph
+            if (clientMST.getStrategy() == "prim") {
+                clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
+            } else if (clientMST.getStrategy() == "kruskal") {
+                clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
+            }
+
+        }
+
+        else {
             ans += "No graph found for adding edge.\n";
         }
     } else if (command_of_user == "Removeedge") {
@@ -146,6 +153,14 @@ string graph_user_commands(string input_user, Graph& clientGraph) {
         if (clientGraph.getSize() != 0) {
             clientGraph.removeEdge(from, to);
             ans += "Edge removed from " + to_string(from) + " to " + to_string(to) + "\n";
+
+            // update the mst graph
+            if (clientMST.getStrategy() == "prim") {
+                clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
+            } else if (clientMST.getStrategy() == "kruskal") {
+                clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
+            }
+
         } else {
             ans += "No graph found for removing edge.\n";
         }
@@ -156,6 +171,14 @@ string graph_user_commands(string input_user, Graph& clientGraph) {
         if (clientGraph.getSize() != 0) {
             clientGraph.reduceEdges(id, newWeight);
             ans += "Edge reduced with id " + to_string(id) + " to weight " + to_string(newWeight) + "\n";
+
+            // update the mst graph
+            if (clientMST.getStrategy() == "prim") {
+                clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
+            } else if (clientMST.getStrategy() == "kruskal") {
+                clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
+            }
+
         } else {
             ans += "No graph found for reducing edge.\n";
         }
@@ -164,16 +187,26 @@ string graph_user_commands(string input_user, Graph& clientGraph) {
         if (!isMST) {
             ans += "No MST found.\n";
         } else {
-            ThreadPool threadPool(4, mst_graph, sharedAns, mtxAns);
+            //  threadPool.addEventHandler(clientMST,clientAns);// Add the event to the thread pool
+            // add anonimi function that compute all the stats
+            threadPool.addEventHandler([&clientMST, &clientAns]() {
+                cout<<"into addEventHandler"<<endl;
+                MST_stats mst_stats;
+                std::ostringstream localAns;
+                localAns << "Thread " << std::this_thread::get_id() << "\n";
+                localAns << " Longest path: " << mst_stats.getLongestDistance(clientMST) << "\n";
+                localAns << " Shortest path: " << mst_stats.getShortestDistance(clientMST) << "\n";
+                localAns << " Average path: " << mst_stats.getAverageDistance(clientMST) << "\n";
+                localAns << " Total weight: " << mst_stats.getTotalWeight(clientMST) << "\n";
+                clientAns += localAns.str();
+            });
 
-            threadPool.addEventHandler(LONGEST_PATH);
-            threadPool.addEventHandler(SHORTEST_PATH);
-            threadPool.addEventHandler(AVERAGE_PATH);
-            threadPool.addEventHandler(TOTAL_WEIGHT);
-            threadPool.stop();  // Make sure to stop threads properly
-
+              threadPool.stop();  // Make sure to stop threads properly
             // Now append the accumulated shared answer to the main answer
-            ans += sharedAns.str();
+            ans += clientAns;
+            ans+= "check  ";
+            cout << "the output:  " << clientAns << endl;
+
             cout << "Leader Follower events processed.\n";
         }
     } else if (command_of_user == "Pipeline") {
@@ -344,7 +377,9 @@ int main() {
 
                         // Create a new graph for this client
                         lock_guard<mutex> lock(mtx);
-                        map_clients[newfd] = Graph();  // Create an empty graph for the new client
+                        std::get<0>(map_clients[newfd]) = Graph();  // Create an empty graph for the new client
+
+                        // map_clients[newfd].first = Graph();  // Create an empty graph for the new client
                     }
                 } else {
                     // handle data from a client
@@ -357,7 +392,7 @@ int main() {
                             perror("recv");
                         }
                         close(i);            // bye!
-                        FD_CLR(i, &master);   // remove from master set
+                        FD_CLR(i, &master);  // remove from master set
                         lock_guard<mutex> lock(mtx);
                         map_clients.erase(i);  // Remove the client's graph
                     } else {
@@ -366,7 +401,9 @@ int main() {
 
                         // Process the command for this client
                         lock_guard<mutex> lock(mtx);
-                        string response = graph_user_commands(string(buf), map_clients[i]);
+                        string response = graph_user_commands(string(buf), get<0>(map_clients[i]), get<1>(map_clients[i]), get<2>(map_clients[i]));
+
+                        // string response = graph_user_commands(string(buf), map_clients[i].first, map_clients[i].second,);
 
                         // Send the response back to the client
                         if (send(i, response.c_str(), response.length(), 0) == -1) {

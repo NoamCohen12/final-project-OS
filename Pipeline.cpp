@@ -107,44 +107,44 @@ class Pipeline {
 
     void processGraph(Graph& graph) {
         std::unique_lock<std::mutex> lock(mtx_);
-    completed = false;  // Reset the completion flag
+        completed = false;  // Reset the completion flag
 
-    // Start by creating an MST from the graph
-    activeObjects[0]->addTask([this, &graph]() {
-        MST_graph mst_graph = task1(graph);
-        sharedAns << mst_graph.to_string() << std::endl;
-        std::cout << "MST created" << std::endl;
+        // Start by creating an MST from the graph
+        activeObjects[0]->addTask([this, &graph]() {
+            MST_graph mst_graph = task1(graph);
+            sharedAns << mst_graph.to_string() << std::endl;
+            std::cout << "MST created" << std::endl;
 
-        // Pass result to next stage (longest distance)
-        activeObjects[1]->addTask([this, mst_graph]() {
-            sharedAns << "Longest Distance: " << task2(mst_graph) << std::endl;
+            // Pass result to next stage (longest distance)
+            activeObjects[1]->addTask([this, mst_graph]() {
+                sharedAns << "Longest Distance: " << task2(mst_graph) << std::endl;
 
-            // Pass result to next stage (shortest distance)
-            activeObjects[2]->addTask([this, mst_graph]() {
-                sharedAns << "Shortest Distance: " << task3(mst_graph) << std::endl;
+                // Pass result to next stage (shortest distance)
+                activeObjects[2]->addTask([this, mst_graph]() {
+                    sharedAns << "Shortest Distance: " << task3(mst_graph) << std::endl;
 
-                // Pass result to next stage (average distance)
-                activeObjects[3]->addTask([this, mst_graph]() {
-                    sharedAns << "Average Distance: " << task4(mst_graph) << std::endl;
+                    // Pass result to next stage (average distance)
+                    activeObjects[3]->addTask([this, mst_graph]() {
+                        sharedAns << "Average Distance: " << task4(mst_graph) << std::endl;
 
-                    // Pass result to next stage (total weight)
-                    activeObjects[4]->addTask([this, mst_graph]() {
-                        sharedAns << "Total Weight: " << task5(mst_graph) << std::endl;
+                        // Pass result to next stage (total weight)
+                        activeObjects[4]->addTask([this, mst_graph]() {
+                            sharedAns << "Total Weight: " << task5(mst_graph) << std::endl;
 
-                        // Notify the main thread that processing is complete
-                        std::unique_lock<std::mutex> lock(mtx_);
-                        completed = true;
-                        cv_.notify_one();
+                            // Notify the main thread that processing is complete
+                            std::unique_lock<std::mutex> lock(mtx_);
+                            completed = true;
+                            cv_.notify_one();
+                        });
                     });
                 });
             });
         });
-    });
-}
+    }
 
-std::string waitForCompletion() {
-    std::unique_lock<std::mutex> lock(mtx_);
-    cv_.wait(lock, [this] { return completed; });
-    return sharedAns.str();
-}
+    std::string waitForCompletion() {
+        std::unique_lock<std::mutex> lock(mtx_);
+        cv_.wait(lock, [this] { return completed; });
+        return sharedAns.str();
+    }
 };

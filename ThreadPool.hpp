@@ -9,6 +9,8 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <string>
+
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
 
@@ -18,17 +20,18 @@
 #define AVERAGE_PATH 3
 #define TOTAL_WEIGHT 4
 
+
 class ThreadPool {
 public:
 
 
-ThreadPool(int numThreads, const MST_graph& mst, std::ostringstream& sharedAns, std::mutex& mtxAns);
+ThreadPool(int numThreads);
 
-    ThreadPool(int numThreads, const MST_graph& mst);
+    //ThreadPool(int numThreads, const MST_graph& mst);
     ~ThreadPool();
 
     // Add an event to the queue
-    void addEventHandler(int eventType);
+    void addEventHandler(std::function<void()> task);
 
     // Stop the thread pool
     void stop();
@@ -39,14 +42,13 @@ private:
 
     int numThreads_;  // Total number of threads in the pool
     std::queue<std::thread::id> threadQueue_;  // Queue of thread IDs
-    std::queue<int> eventQueue_;  // Queue of events to process
+    std::queue<function<void()>>  eventQueue_;  // Queue of events to process
     std::vector<std::thread> workers_;  // List of thread objects
-    std::mutex mtx_;  // Mutex for synchronization
+    std::mutex mutexstop;  // Mutex for synchronization
+    std::mutex mutexqueue;  // Mutex for synchronization
     std::condition_variable cv_;  // Condition variable for waiting threads
     bool stopFlag_;  // Flag to stop the thread pool
-    MST_graph mst_;  // MST graph object
-    std::ostringstream& sharedAns_;  // Shared answer buffer
-    std::mutex& mtxAns_;  // Mutex for the shared answer
+   // std::ostringstream& sharedAns_;  // Shared answer buffer
 
 
 };
