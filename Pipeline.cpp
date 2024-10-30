@@ -1,5 +1,3 @@
-
-
 #include <condition_variable>
 #include <functional>
 #include <iostream>
@@ -14,49 +12,67 @@
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
 #include "MST_strategy.hpp"
+using namespace std;
 
 // ActiveObject class that processes a task
-class ActiveObject {
-    std::thread workerThread;
-    std::queue<std::function<void()>> tasks;
+struct ActiveObject {
+    std::thread* workerThread;
+    std::queue<void*> tasks;
     std::mutex mtx;
     std::condition_variable cv;
     bool stopFlag;
+    std::function<void(void*)> function;  // The function that the worker will execute
+    queue<void*>* nextActiveObject;       // Queue for the next ActiveObject
 
-   public:
-    ActiveObject() : stopFlag(false) {
-        workerThread = std::thread(&ActiveObject::runTasks, this);
+    ActiveObject(std::function<void(void*)> func) : stopFlag(false), function(func), workerThread(nullptr), nextActiveObject(nullptr) {}
+
+    ActiveObject() {};
+
+    // Copy constructor
+    ActiveObject(const ActiveObject& other) {
+        stopFlag = other.stopFlag;
+        function = other.function;
+        nextActiveObject = other.nextActiveObject;
     }
 
-    ~ActiveObject() {
-        {
-            std::lock_guard<std::mutex> lock(mtx);
-            stopFlag = true;
-            cv.notify_one();
-        }
-        workerThread.join();
-    }
-
-    void addTask(std::function<void()> task) {
+    void addTask(void* task) {
         std::lock_guard<std::mutex> lock(mtx);
         tasks.push(task);
         cv.notify_one();
+        cout << "[DEBUG] Task added to ActiveObject. Queue size: " << tasks.size() << endl;
     }
 
     void runTasks() {
+        //print rthed id
+        cout<<"in runtask"<<endl;
+                std::cout << "Worker thread started. Thread ID: " << std::this_thread::get_id() << std::endl;
+
         while (true) {
-            std::function<void()> task;
+            void* task;
             {
+                 std::cout << "Worker thread wait Thread ID: " << std::this_thread::get_id() << std::endl;
                 std::unique_lock<std::mutex> lock(mtx);
                 cv.wait(lock, [this] { return !tasks.empty() || stopFlag; });
 
-                if (stopFlag && tasks.empty())
-                    return;
 
-                task = tasks.front();
-                tasks.pop();
+                if (stopFlag && tasks.empty()) {
+                    cout << "[DEBUG] Stopping ActiveObject due to stopFlag and empty queue." << endl;
+                    return;
+                }
+                if (!tasks.empty()) {
+                    task = tasks.front();
+                    tasks.pop();
+                    cout << "[DEBUG] Task fetched from queue. Remaining tasks: " << tasks.size() << endl;
+                }
+
+                function(task);
+                cout << "[DEBUG] Task executed." << endl;
+
+                if (nextActiveObject) {
+                    nextActiveObject->push(task);
+                    cout << "[DEBUG] Task passed to next ActiveObject." << endl;
+                }
             }
-            task();  // Execute the task
         }
     }
 };
@@ -65,86 +81,85 @@ class ActiveObject {
 class Pipeline {
     std::mutex mtx_;
     std::condition_variable cv_;
-    bool completed = false;
-    std::vector<std::unique_ptr<ActiveObject>> activeObjects;
-    std::ostringstream& sharedAns;  // Change the type to std::ostringstream
-    // Task 1: Construct MST from graph
-    MST_graph task1(Graph& graph) {
-        MST_strategy MST_strategy;
-        return MST_strategy.prim(graph.getEdges(), graph.getnumVertices());  // MST creation using Prim's algorithm
+    std::vector<ActiveObject> activeObjects;
+
+    // Task 1: Longest Distance
+    static void taskLongestDistance(void* task) {
+        auto* taskTuple = static_cast<std::tuple<MST_graph, std::string*>*>(task);
+        MST_graph& mst_graph = std::get<0>(*taskTuple);
+        std::string* resultString = std::get<1>(*taskTuple);
+
+        MST_stats stats;
+        *resultString += "Longest Distance: " + std::to_string(stats.getLongestDistance(mst_graph)) + "\n";
+        cout << "[DEBUG] Longest Distance calculated: " << *resultString << endl;
     }
 
-    // Task 2-5: MST statistics
-    std::string task2(const MST_graph& mst_graph) {
+    // Task 2: Shortest Distance
+    static void taskShortestDistance(void* task) {
+        auto* taskTuple = static_cast<std::tuple<MST_graph, std::string*>*>(task);
+        MST_graph& mst_graph = std::get<0>(*taskTuple);
+        std::string* resultString = std::get<1>(*taskTuple);
+
         MST_stats stats;
-        return to_string(stats.getLongestDistance(mst_graph));
+        *resultString += "Shortest Distance: " + std::to_string(stats.getShortestDistance(mst_graph)) + "\n";
+        cout << "[DEBUG] Shortest Distance calculated: " << *resultString << endl;
     }
 
-    std::string task3(const MST_graph& mst_graph) {
+    // Task 3: Average Distance
+    static void taskAverageDistance(void* task) {
+        auto* taskTuple = static_cast<std::tuple<MST_graph, std::string*>*>(task);
+        MST_graph& mst_graph = std::get<0>(*taskTuple);
+        std::string* resultString = std::get<1>(*taskTuple);
+
         MST_stats stats;
-        return to_string(stats.getShortestDistance(mst_graph));
+        *resultString += "Average Distance: " + std::to_string(stats.getAverageDistance(mst_graph)) + "\n";
+        cout << "[DEBUG] Average Distance calculated: " << *resultString << endl;
     }
 
-    std::string task4(const MST_graph& mst_graph) {
-        MST_stats stats;
-        return to_string(stats.getAverageDistance(mst_graph));
-    }
+    // Task 4: Total Weight
+    static void taskTotalWeight(void* task) {
+        auto* taskTuple = static_cast<std::tuple<MST_graph, std::string*>*>(task);
+        MST_graph& mst_graph = std::get<0>(*taskTuple);
+        std::string* resultString = std::get<1>(*taskTuple);
 
-    std::string task5(const MST_graph& mst_graph) {
         MST_stats stats;
-        return to_string(stats.getTotalWeight(mst_graph));
+        *resultString += "Total Weight: " + std::to_string(stats.getTotalWeight(mst_graph)) + "\n";
+        cout << "[DEBUG] Total Weight calculated: " << *resultString << endl;
     }
 
    public:
-    Pipeline(std::ostringstream& sharedAns) : sharedAns(sharedAns) {
+    Pipeline() {
         // Create ActiveObjects (workers) for each task
-        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 1
-        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 2
-        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 3
-        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 4
-        activeObjects.push_back(std::make_unique<ActiveObject>());  // Task 5
+        activeObjects.push_back(ActiveObject(Pipeline::taskLongestDistance));   // Task 1
+        activeObjects.push_back(ActiveObject(Pipeline::taskShortestDistance));  // Task 2
+        activeObjects.push_back(ActiveObject(Pipeline::taskAverageDistance));   // Task 3
+        activeObjects.push_back(ActiveObject(Pipeline::taskTotalWeight));       // Task 4
+        for (int i = 0; i < activeObjects.size() - 1; ++i) {
+            activeObjects[i].nextActiveObject = &activeObjects[i + 1].tasks;
+        }
+        cout << "[DEBUG] Pipeline initialized with " << activeObjects.size() << " ActiveObjects." << endl;
+    }
+   
+    void addRequest(void* task) {
+        activeObjects[0].addTask(task);
+        activeObjects[0].cv.notify_one();
+        cout << "[DEBUG] Task added to Pipeline. Initial ActiveObject notified." << endl;
     }
 
-    void processGraph(Graph& graph) {
-        std::unique_lock<std::mutex> lock(mtx_);
-        completed = false;  // Reset the completion flag
-
-        // Start by creating an MST from the graph
-        activeObjects[0]->addTask([this, &graph]() {
-            MST_graph mst_graph = task1(graph);
-            sharedAns << mst_graph.to_string() << std::endl;
-            std::cout << "MST created" << std::endl;
-
-            // Pass result to next stage (longest distance)
-            activeObjects[1]->addTask([this, mst_graph]() {
-                sharedAns << "Longest Distance: " << task2(mst_graph) << std::endl;
-
-                // Pass result to next stage (shortest distance)
-                activeObjects[2]->addTask([this, mst_graph]() {
-                    sharedAns << "Shortest Distance: " << task3(mst_graph) << std::endl;
-
-                    // Pass result to next stage (average distance)
-                    activeObjects[3]->addTask([this, mst_graph]() {
-                        sharedAns << "Average Distance: " << task4(mst_graph) << std::endl;
-
-                        // Pass result to next stage (total weight)
-                        activeObjects[4]->addTask([this, mst_graph]() {
-                            sharedAns << "Total Weight: " << task5(mst_graph) << std::endl;
-
-                            // Notify the main thread that processing is complete
-                            std::unique_lock<std::mutex> lock(mtx_);
-                            completed = true;
-                            cv_.notify_one();
-                        });
-                    });
-                });
-            });
-        });
+    void start() {
+        cout << "[DEBUG] Pipeline starting all worker threads." << endl;
+        for (auto& activeObject : activeObjects) {
+            activeObject.workerThread = new std::thread(&ActiveObject::runTasks, &activeObject);
+            cout << "[DEBUG] Worker thread started for ActiveObject." << endl;
+        }
     }
-
-    std::string waitForCompletion() {
-        std::unique_lock<std::mutex> lock(mtx_);
-        cv_.wait(lock, [this] { return completed; });
-        return sharedAns.str();
+    void stop() {
+        cout << "[DEBUG] Pipeline stopping all worker threads." << endl;
+        for (auto& activeObject : activeObjects) {
+            activeObject.stopFlag = true;
+            activeObject.cv.notify_one();
+            activeObject.workerThread->join();
+            cout << "[DEBUG] Worker thread stopped for ActiveObject." << endl;
+        }
     }
 };

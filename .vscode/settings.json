@@ -58,5 +58,12 @@
         "thread": "cpp",
         "typeinfo": "cpp",
         "csignal": "cpp"
-    }
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "/home/noamc/system_programming/final project OS",
+            "binaryPath": "/home/noamc/system_programming/final project OS/main",
+            "binaryArgs": []
+        }
+    ]
 }

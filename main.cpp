@@ -9,7 +9,9 @@
 #include <csignal>  // For signal handling (e.g., SIGINT)
 #include <cstring>  // Include for memset
 #include <ctime>
+#include <future>
 #include <iostream>
+#include <memory>
 #include <mutex>
 #include <numeric>
 #include <random>
@@ -19,23 +21,21 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
-#include <future>
-#include <memory>
-
 
 #include "Graph.cpp"
 #include "GraphGUI.cpp"  // Include the GraphGUI header
+#include "LeaderFollowerPool.hpp"
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
 #include "MST_strategy.hpp"
 #include "Pipeline.cpp"
-#include "ThreadPool.hpp"
 #include "union_find.hpp"
 #define PORT "9034"    // port we're listening on
 #define NUM_THREADS 4  // Number of threads in the thread pool
 using namespace std;
 unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client gets its own graph
-    ThreadPool threadPool(NUM_THREADS);  // Create a thread pool object
+LeaderFollowerPool threadPool(NUM_THREADS);                       // Create a thread pool object
+Pipeline pipeline;
 
 mutex mtx;
 MST_strategy mst;
@@ -43,8 +43,8 @@ MST_stats stats;
 bool isMST = false;
 // std::ostringstream sharedAns;
 
-// Declare the ThreadPool instance here
-int listener;                        // Global listener for shutdown handling
+// Declare the LeaderFollowerPool instance here
+int listener;  // Global listener for shutdown handling
 
 // Signal handler for graceful shutdown
 void shutdown_handler(int signum) {
@@ -84,11 +84,8 @@ string MST_to_string(const MST_graph &mst) {
     return ans;
 }
 string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &clientMST, string &clientAns) {
-    // threadPool.start();  // Start the thread pool
     // Shared string to accumulate results
     std::ostringstream sharedAns_;
-    //  Pipeline Pipeline(sharedAns, mtxAns);  // Create a pipeline object
-    Pipeline pipeline(sharedAns_);
     string ans;
     string command_of_user;
     istringstream iss(input_user);
@@ -191,7 +188,7 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             ans += "No MST found.\n";
         } else {
             // Use a promise to get the result
-        auto promise = std::make_shared<std::promise<std::string>>();
+            auto promise = std::make_shared<std::promise<std::string>>();
             auto future = promise->get_future();
 
             threadPool.addEventHandler([&clientMST, promise]() {
@@ -212,25 +209,22 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
                 ans += "Error processing request: " + string(e.what()) + "\n";
             }
         }
-    }
-else if (command_of_user == "Pipeline") {
-    if (!isMST) {
-        ans += "No MST found.\n";
+    } else if (command_of_user == "Pipeline") {
+        if (!isMST) {
+            ans += "No MST found.\n";
+        } else {
+            auto clientTask = std::make_tuple(clientMST, &clientAns);
+
+            // Pass the pointer to the tuple to the pipeline
+            pipeline.addRequest(&clientTask);
+
+            // Append the processed result to ans
+            ans += clientAns;
+        }
     } else {
-        // Simulate clients sending graphs
-        pipeline.processGraph(clientGraph);
-        // Wait for the pipeline to finish processing
-        string ans_pipeline = pipeline.waitForCompletion();
-
-        // Append the processed result to ans
-        ans += ans_pipeline;
+        ans += "Unknown command.\n";
     }
-}
-else {
-    ans += "Unknown command.\n";
-}
-
-return ans;
+    return ans;
 }
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
@@ -281,14 +275,13 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     return random_graph;
 }
 int main() {
-
-
     fd_set master;    // master file descriptor list
     fd_set read_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
 
-    // Initialize the ThreadPool once
-    threadPool.start();                  // Start the ThreadPool once during server initialization
+    // Initialize the LeaderFollowerPool once
+    threadPool.start();  // Start the LeaderFollowerPool once during server initialization
+    pipeline.start();    // Start the pipeline once during server initialization
 
     int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
@@ -424,6 +417,6 @@ int main() {
             }
         }
     }
-
+    pipeline.stop();  // Stop the pipeline when the server is shutting down
     return 0;
 }

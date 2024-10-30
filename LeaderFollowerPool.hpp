@@ -15,27 +15,21 @@
 #include "MST_stats.hpp"
 
 
-#define LONGEST_PATH 1
-#define SHORTEST_PATH 2
-#define AVERAGE_PATH 3
-#define TOTAL_WEIGHT 4
 
-
-class ThreadPool {
+class LeaderFollowerPool {
 public:
 
 
-ThreadPool(int numThreads);
+LeaderFollowerPool(int numThreads);
 
-    //ThreadPool(int numThreads, const MST_graph& mst);
-    ~ThreadPool();
+    //LeaderFollowerPool(int numThreads, const MST_graph& mst);
+    ~LeaderFollowerPool();
 
     // Add an event to the queue
     void addEventHandler(std::function<void()> task);
 
     // Stop the thread pool
     void stop();
-
     void start();
 
 
@@ -45,16 +39,12 @@ private:
 
 
     int numThreads_;  // Total number of threads in the pool
-    std::queue<std::thread::id> threadQueue_;  // Queue of thread IDs
     std::queue<function<void()>>  eventQueue_;  // Queue of events to process
     std::vector<std::thread> workers_;  // List of thread objects
     std::mutex mutexstop;  // Mutex for synchronization
     std::mutex mutexqueue;  // Mutex for synchronization
     std::condition_variable cv_;  // Condition variable for waiting threads
     bool stopFlag_;  // Flag to stop the thread pool
-        bool completed = false;
-
-   // std::ostringstream& sharedAns_;  // Shared answer buffer
 
 
 };
