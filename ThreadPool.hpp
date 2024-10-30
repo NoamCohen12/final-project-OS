@@ -36,9 +36,13 @@ ThreadPool(int numThreads);
     // Stop the thread pool
     void stop();
 
+    void start();
+
+
 private:
     void leaderRole();  // Function for the leader thread
     void followerRole();  // Function for the followers
+
 
     int numThreads_;  // Total number of threads in the pool
     std::queue<std::thread::id> threadQueue_;  // Queue of thread IDs
@@ -48,6 +52,8 @@ private:
     std::mutex mutexqueue;  // Mutex for synchronization
     std::condition_variable cv_;  // Condition variable for waiting threads
     bool stopFlag_;  // Flag to stop the thread pool
+        bool completed = false;
+
    // std::ostringstream& sharedAns_;  // Shared answer buffer
 
 

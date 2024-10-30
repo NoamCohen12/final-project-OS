@@ -19,6 +19,9 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+#include <future>
+#include <memory>
+
 
 #include "Graph.cpp"
 #include "GraphGUI.cpp"  // Include the GraphGUI header
@@ -32,6 +35,7 @@
 #define NUM_THREADS 4  // Number of threads in the thread pool
 using namespace std;
 unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client gets its own graph
+    ThreadPool threadPool(NUM_THREADS);  // Create a thread pool object
 
 mutex mtx;
 MST_strategy mst;
@@ -39,9 +43,8 @@ MST_stats stats;
 bool isMST = false;
 // std::ostringstream sharedAns;
 
-ThreadPool threadPool(NUM_THREADS);  // Create a thread pool object
-
-int listener;  // Global listener for shutdown handling
+// Declare the ThreadPool instance here
+int listener;                        // Global listener for shutdown handling
 
 // Signal handler for graceful shutdown
 void shutdown_handler(int signum) {
@@ -70,18 +73,18 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
 string MST_to_string(const MST_graph &mst) {
     string ans;
     vector<tuple<int, int, int, int>> edges = mst.getEdges();
-    
-    ans+="MST created:\n";
+
+    ans += "MST created:\n";
     for (const auto &e : edges) {
         int u, v, w, id;
         tie(u, v, w, id) = e;
         ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
     }
-    
-    
+
     return ans;
 }
 string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &clientMST, string &clientAns) {
+    // threadPool.start();  // Start the thread pool
     // Shared string to accumulate results
     std::ostringstream sharedAns_;
     //  Pipeline Pipeline(sharedAns, mtxAns);  // Create a pipeline object
@@ -118,11 +121,11 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             if (strategy == "prim") {
                 clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
                 isMST = true;
-                ans+=MST_to_string(clientMST);
+                ans += MST_to_string(clientMST);
             } else if (strategy == "kruskal") {
                 clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
                 isMST = true;
-                ans+=MST_to_string(clientMST);
+                ans += MST_to_string(clientMST);
             } else {
                 ans += "Invalid strategy.\n";
             }
@@ -187,10 +190,11 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         if (!isMST) {
             ans += "No MST found.\n";
         } else {
-            //  threadPool.addEventHandler(clientMST,clientAns);// Add the event to the thread pool
-            // add anonimi function that compute all the stats
-            threadPool.addEventHandler([&clientMST, &clientAns]() {
-                cout<<"into addEventHandler"<<endl;
+            // Use a promise to get the result
+        auto promise = std::make_shared<std::promise<std::string>>();
+            auto future = promise->get_future();
+
+            threadPool.addEventHandler([&clientMST, promise]() {
                 MST_stats mst_stats;
                 std::ostringstream localAns;
                 localAns << "Thread " << std::this_thread::get_id() << "\n";
@@ -198,34 +202,35 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
                 localAns << " Shortest path: " << mst_stats.getShortestDistance(clientMST) << "\n";
                 localAns << " Average path: " << mst_stats.getAverageDistance(clientMST) << "\n";
                 localAns << " Total weight: " << mst_stats.getTotalWeight(clientMST) << "\n";
-                clientAns += localAns.str();
+                promise->set_value(localAns.str());
             });
 
-              threadPool.stop();  // Make sure to stop threads properly
-            // Now append the accumulated shared answer to the main answer
-            ans += clientAns;
-            ans+= "check  ";
-            cout << "the output:  " << clientAns << endl;
-
-            cout << "Leader Follower events processed.\n";
+            // Wait for result
+            try {
+                ans += future.get();  // Get the result when ready
+            } catch (const exception &e) {
+                ans += "Error processing request: " + string(e.what()) + "\n";
+            }
         }
-    } else if (command_of_user == "Pipeline") {
-        if (!isMST) {
-            ans += "No MST found.\n";
-        } else {
-            // Simulate clients sending graphs
-            pipeline.processGraph(clientGraph);
-            // Wait for the pipeline to finish processing
-            string ans_pipeline = pipeline.waitForCompletion();
-
-            // Append the processed result to ans
-            ans += ans_pipeline;
-        }
-    } else {
-        ans += "Unknown command.\n";
     }
+else if (command_of_user == "Pipeline") {
+    if (!isMST) {
+        ans += "No MST found.\n";
+    } else {
+        // Simulate clients sending graphs
+        pipeline.processGraph(clientGraph);
+        // Wait for the pipeline to finish processing
+        string ans_pipeline = pipeline.waitForCompletion();
 
-    return ans;
+        // Append the processed result to ans
+        ans += ans_pipeline;
+    }
+}
+else {
+    ans += "Unknown command.\n";
+}
+
+return ans;
 }
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
@@ -276,9 +281,14 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     return random_graph;
 }
 int main() {
+
+
     fd_set master;    // master file descriptor list
     fd_set read_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
+
+    // Initialize the ThreadPool once
+    threadPool.start();                  // Start the ThreadPool once during server initialization
 
     int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
