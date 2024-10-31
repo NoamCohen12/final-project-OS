@@ -186,26 +186,32 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             ans += "No MST found.\n";
         } else {
             // Use a promise to get the result
-            auto promise = std::make_shared<std::promise<std::string>>();
-            auto future = promise->get_future();
+            auto clientTask = std::make_tuple(&clientMST, &clientAns);
+            // Pass the pointer to the tuple to the threadPool
+            threadPool.addEventHandler(&clientTask);
+            // Add a small delay to allow pipeline to process
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            // auto promise = std::make_shared<std::promise<std::string>>();
+            // auto future = promise->get_future();
 
-            threadPool.addEventHandler([&clientMST, promise]() {
-                MST_stats mst_stats;
-                std::ostringstream localAns;
-                localAns << "Thread " << std::this_thread::get_id() << "\n";
-                localAns << " Longest path: " << mst_stats.getLongestDistance(clientMST) << "\n";
-                localAns << " Shortest path: " << mst_stats.getShortestDistance(clientMST) << "\n";
-                localAns << " Average path: " << mst_stats.getAverageDistance(clientMST) << "\n";
-                localAns << " Total weight: " << mst_stats.getTotalWeight(clientMST) << "\n";
-                promise->set_value(localAns.str());
-            });
+            // threadPool.addEventHandler([&clientMST, promise]() {
+            //     MST_stats mst_stats;
+            //     std::ostringstream localAns;
+            //     localAns << "Thread " << std::this_thread::get_id() << "\n";
+            //     localAns << " Longest path: " << mst_stats.getLongestDistance(clientMST) << "\n";
+            //     localAns << " Shortest path: " << mst_stats.getShortestDistance(clientMST) << "\n";
+            //     localAns << " Average path: " << mst_stats.getAverageDistance(clientMST) << "\n";
+            //     localAns << " Total weight: " << mst_stats.getTotalWeight(clientMST) << "\n";
+            //     promise->set_value(localAns.str());
+            // });
 
             // Wait for result
-            try {
-                ans += future.get();  // Get the result when ready
-            } catch (const exception &e) {
-                ans += "Error processing request: " + string(e.what()) + "\n";
-            }
+            // try {
+            //     ans += future.get();  // Get the result when ready
+            // } catch (const exception &e) {
+            //     ans += "Error processing request: " + string(e.what()) + "\n";
+            // }
+            ans += clientAns;
         }
     } else if (command_of_user == "Pipeline") {
         if (!isMST) {
@@ -218,7 +224,6 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
 
             // Add a small delay to allow pipeline to process
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
 
             // Append the processed result to ans
             ans += clientAns;

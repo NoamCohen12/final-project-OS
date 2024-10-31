@@ -6,7 +6,7 @@
 void LeaderFollowerPool::start() {
     {
         lock_guard<mutex> lock(mutexstop);  // Lock the mutex
-        stopFlag_ = false;  
+        stopFlag_ = false;
     }
 }
 // Update constructor to accept shared answer stream and mutex
@@ -14,7 +14,6 @@ LeaderFollowerPool::LeaderFollowerPool(int numThreads)
     : numThreads_(numThreads), stopFlag_(false) {
     for (int i = 0; i < numThreads_; ++i) {
         workers_.emplace_back(&LeaderFollowerPool::leaderRole, this);
-       // threadQueue_.push(workers_.back().get_id());
     }
 }
 
@@ -22,18 +21,33 @@ LeaderFollowerPool::~LeaderFollowerPool() {
     stop();
 }
 
-
-void LeaderFollowerPool::addEventHandler(function<void()> task) {
+void LeaderFollowerPool::addEventHandler(void* task) {
     {
-    std::lock_guard<std::mutex> lock(mutexqueue);
-    eventQueue_.push(task);
+        std::lock_guard<std::mutex> lock(mutexqueue);
+        eventQueue_.push(task);
     }
     cv_.notify_one();  // Notify the leader thread to handle the event
 }
+
+void LeaderFollowerPool::mainFunction(void* task) {
+    MST_stats mst_stats;
+
+    auto* taskTuple = static_cast<tuple<MST_graph*, string*>*>(task);
+    MST_graph* clientMST = std::get<0>(*taskTuple);
+    string* clientAns = std::get<1>(*taskTuple);
+
+    std::ostringstream localAns;
+    localAns << "Thread " << std::this_thread::get_id() << "\n";
+    localAns << " Longest path: " << mst_stats.getLongestDistance(*clientMST) << "\n";
+    localAns << " Shortest path: " << mst_stats.getShortestDistance(*clientMST) << "\n";
+    localAns << " Average path: " << mst_stats.getAverageDistance(*clientMST) << "\n";
+    localAns << " Total weight: " << mst_stats.getTotalWeight(*clientMST) << "\n";
+    *clientAns += localAns.str();
+}
+
 void LeaderFollowerPool::leaderRole() {
     while (true) {
-        function<void()> currentRequest;
-
+        void* task = nullptr;
         {
             std::unique_lock<std::mutex> lock(mutexqueue);
             cv_.wait(lock, [this] { return !eventQueue_.empty() || stopFlag_; });
@@ -44,7 +58,7 @@ void LeaderFollowerPool::leaderRole() {
 
             if (!eventQueue_.empty()) {
                 // Get the next task
-                currentRequest = std::move(eventQueue_.front());
+                task = std::move(eventQueue_.front());
                 eventQueue_.pop();
             } else {
                 continue;  // Recheck if spurious wakeup
@@ -52,25 +66,18 @@ void LeaderFollowerPool::leaderRole() {
         }
 
         // Execute the task outside the lock
-        if (currentRequest) {
-            currentRequest();
+        if (task) {
+            mainFunction(task);
         }
 
         // Notify other threads that a new leader can be elected
-        cv_.notify_one();
+        followerRole();
     }
 }
 
-
-// void LeaderFollowerPool::followerRole() {
-//     {
-//         std::lock_guard<std::mutex> lock(mutexqueue);
-//         if (!threadQueue_.empty()) {
-//             threadQueue_.pop();  // Remove current leader
-//         }
-//     }
-//     cv_.notify_one();  // Wake up next thread to be leader
-// }
+void LeaderFollowerPool::followerRole() {
+    cv_.notify_one();  // Wake up next thread to be leader
+}
 
 // Method to gracefully stop the thread pool
 void LeaderFollowerPool::stop() {
@@ -87,8 +94,6 @@ void LeaderFollowerPool::stop() {
         }
     }
 }
-
-
 
 // void waitForCompletion() {
 //         std::unique_lock<std::mutex> lock(mutexqueue);
