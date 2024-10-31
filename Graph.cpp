@@ -35,7 +35,7 @@ class Graph {
         return edges;
     }
     tuple<int,int,int,int> getEdge(int i) {
-        cout << "getEdge" << endl;
+       // cout << "getEdge" << endl;
         //print all parmeters
         int u, v, w, id;
         tie(u, v, w, id) = edges[i];

@@ -39,9 +39,7 @@ Pipeline pipeline;
 
 mutex mtx;
 MST_strategy mst;
-MST_stats stats;
 bool isMST = false;
-// std::ostringstream sharedAns;
 
 // Declare the LeaderFollowerPool instance here
 int listener;  // Global listener for shutdown handling
@@ -218,12 +216,8 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             // Pass the pointer to the tuple to the pipeline
             pipeline.addRequest(&clientTask);
 
-              // Add a small delay to allow pipeline to process
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-
-cout <<"clientAns: " << clientAns << endl;
-
+            // Add a small delay to allow pipeline to process
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
 
             // Append the processed result to ans
@@ -290,7 +284,6 @@ int main() {
     // Initialize the LeaderFollowerPool once
     threadPool.start();  // Start the LeaderFollowerPool once during server initialization
     pipeline.start();    // Start the pipeline once during server initialization
-
 
     int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
@@ -426,7 +419,7 @@ int main() {
             }
         }
     }
-            pipeline.stop();  // Stop the pipeline when the server is shutting down
+    pipeline.stop();  // Stop the pipeline when the server is shutting down
 
     return 0;
 }
