@@ -1,0 +1,24 @@
+ 
+ 
+ 1. Memcheck
+
+ valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=memecheck_Leader_Follower.txt ./main
+  valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=memecheck_Pipeline.txt ./main
+
+
+
+
+
+
+2. Helgrind
+
+
+          valgrind --tool=helgrind --log-file=helgrind_Leader_Follower.txt ./main -l
+          valgrind --tool=helgrind --log-file=helgrind_Pipeline.txt ./main -l
+
+
+
+
+
+
+

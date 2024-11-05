@@ -1,4 +1,4 @@
-CXX = clang++ -g
+CXX = clang++ -g -gdwarf-4
 
 .PHONY: all clean 
 

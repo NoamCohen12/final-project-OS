@@ -18,14 +18,14 @@ using namespace std;
 struct ActiveObject {
     std::thread* workerThread;
     std::queue<void*> tasks;
-    std::mutex mtx;
-    std::condition_variable cv;
+    std::mutex* mtx;
+    std::condition_variable* cv;
     bool stopFlag;
     std::function<void(void*)> function;  // The function that the worker will execute
     queue<void*>* nextActiveObject;       // Queue for the next ActiveObject
     int id;
 
-    ActiveObject(std::function<void(void*)> func, int id) : stopFlag(false), function(func), workerThread(nullptr), nextActiveObject(nullptr), id(id) {}
+    ActiveObject(std::function<void(void*)> func, int id) : cv(nullptr), mtx(nullptr), stopFlag(false), function(func), workerThread(nullptr), nextActiveObject(nullptr), id(id) {}
 
     ActiveObject() {};
 
@@ -35,53 +35,45 @@ struct ActiveObject {
         function = other.function;
         nextActiveObject = other.nextActiveObject;
         id = other.id;
+        cv = other.cv;
+        mtx = other.mtx;
     }
 
     void addTask(void* task) {
-        std::lock_guard<std::mutex> lock(mtx);
+        //  std::lock_guard<std::mutex> lock(*mtx);
         tasks.push(task);
-        cv.notify_one();
+        cv->notify_one();
         cout << "Task added to ActiveObject. Queue size: " << tasks.size() << endl;
     }
 
     void runTasks(vector<ActiveObject>& activeObjects) {
-        // print rthed id
-        // cout << "in runtask" << endl;
-        // std::cout << "Worker thread started. Thread ID: " << std::this_thread::get_id() << std::endl;
-
         while (true) {
             void* task;
             {
-                // std::cout << "Worker thread wait Thread ID: " << std::this_thread::get_id() << std::endl;
-                std::unique_lock<std::mutex> lock(mtx);
-                cv.wait(lock, [this] { return !tasks.empty() || stopFlag; });
-                // cout << std::this_thread::get_id() << "after wait" << endl;
+                std::unique_lock<std::mutex> lock(*mtx);
+                cv->wait(lock, [this] { return !tasks.empty() || stopFlag; });
 
                 if (stopFlag && tasks.empty()) {
-                    cout << "Stopping ActiveObject due to stopFlag and empty queue." << endl;
                     return;
                 }
+
                 if (!tasks.empty()) {
                     task = tasks.front();
                     tasks.pop();
-                    // cout << "Task fetched from queue. Remaining tasks: " << tasks.size() << endl;
                 }
 
+                // Release the current lock before processing
+                lock.unlock();
+                
                 function(task);
-                // cout << "Task executed." << endl;
 
                 if (nextActiveObject) {
-                    cout << "activeObject: " << id << " Passing task to next ActiveObject." << endl;
+                    // Properly lock the next ActiveObject's queue
+                    std::lock_guard<std::mutex> nextLock(*activeObjects[id + 1].mtx);
                     nextActiveObject->push(task);
-                    if (id + 1 < activeObjects.size()) {
-                        activeObjects[id + 1].cv.notify_one();
-                    }
-                    // cout << "[DEBUG] Task passed to next ActiveObject." << endl;
-                } else {
-                    cout << "No next ActiveObject." << endl;
+                    activeObjects[id + 1].cv->notify_one();
                 }
             }
-            cout << "-------------------------------------------------------------" << endl;
         }
     }
 };
@@ -98,13 +90,13 @@ class Pipeline {
         auto* taskTuple = static_cast<tuple<MST_graph*, string*>*>(task);
         MST_graph* mst_graph = std::get<0>(*taskTuple);
         string* clientAns = std::get<1>(*taskTuple);
-
         MST_stats stats;
         *clientAns += "Longest Distance: " + std::to_string(stats.getLongestDistance(*mst_graph)) + "\n";
     }
 
     // Task 2: Shortest Distance
     static void taskShortestDistance(void* task) {
+
         std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated shortest distance" << std::endl;
 
         auto* taskTuple = static_cast<tuple<MST_graph*, string*>*>(task);
@@ -117,6 +109,7 @@ class Pipeline {
 
     // Task 3: Average Distance
     static void taskAverageDistance(void* task) {
+
         std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated average distance" << std::endl;
 
         auto* taskTuple = static_cast<tuple<MST_graph*, string*>*>(task);
@@ -129,6 +122,7 @@ class Pipeline {
 
     // Task 4: Total Weight
     static void taskTotalWeight(void* task) {
+
         std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated total weight" << std::endl;
 
         auto* taskTuple = static_cast<tuple<MST_graph*, string*>*>(task);
@@ -151,11 +145,29 @@ class Pipeline {
             activeObjects[i].nextActiveObject = &activeObjects[i + 1].tasks;
         }
         cout << "Pipeline initialized with " << activeObjects.size() << " ActiveObjects." << endl;
+        for (auto& activeObject : activeObjects) {
+            std::mutex* mtx = new std::mutex();                             // creating a new mutex
+            std::condition_variable* cond = new std::condition_variable();  // creating a new condition variable
+            activeObject.mtx = mtx;
+            activeObject.cv = cond;
+        }
+    }
+
+    ~Pipeline() {
+        stop();  // Ensure all threads are stopped and joined
+
+        for (auto& activeObject : activeObjects) {
+            delete activeObject.workerThread;
+            delete activeObject.mtx;
+            delete activeObject.cv;
+        }
+        // stop();
     }
 
     void addRequest(void* task) {
+        std::lock_guard<std::mutex> lock(*(activeObjects[0].mtx));
         activeObjects[0].addTask(task);
-        activeObjects[0].cv.notify_one();
+        activeObjects[0].cv->notify_one();
         cout << "Task added to Pipeline (first worker). Initial ActiveObject notified." << endl;
     }
 
@@ -169,12 +181,17 @@ class Pipeline {
         }
     }
     void stop() {
-        cout << "Pipeline stopping all worker threads." << endl;
         for (auto& activeObject : activeObjects) {
+            std::lock_guard<std::mutex> lock(*activeObject.mtx);
+
             activeObject.stopFlag = true;
-            activeObject.cv.notify_one();
-            activeObject.workerThread->join();
-            cout << "Worker thread stopped for ActiveObject." << endl;
+            activeObject.cv->notify_one();
+        }
+
+        for (auto& activeObject : activeObjects) {
+            if (activeObject.workerThread->joinable()) {
+                activeObject.workerThread->join();
+            }
         }
     }
 };

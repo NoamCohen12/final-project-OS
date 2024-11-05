@@ -39,6 +39,7 @@ void mainFunction(void* task);
     std::vector<std::thread> workers_;    // List of thread objects
     std::mutex mutexstop;                 // Mutex for synchronization
     std::mutex mutexqueue;                // Mutex for synchronization
+    std::mutex mutexClientAns;            // Mutex for synchronization
     std::condition_variable cv_;          // Condition variable for waiting threads
     bool stopFlag_;                       // Flag to stop the thread pool
 };

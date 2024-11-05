@@ -37,9 +37,8 @@ unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client
 LeaderFollowerPool threadPool(NUM_THREADS);                       // Create a thread pool object
 Pipeline pipeline;
 
-mutex mtx;
 MST_strategy mst;
-bool isMST = false;
+atomic<bool> isMST{false};
 
 // Declare the LeaderFollowerPool instance here
 int listener;  // Global listener for shutdown handling
@@ -83,6 +82,7 @@ string MST_to_string(const MST_graph &mst) {
 }
 string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &clientMST, string &clientAns) {
     // Shared string to accumulate results
+    static std::mutex ansMutex; // Declare as static to ensure it's shared across function calls
     std::ostringstream sharedAns_;
     string ans;
     string command_of_user;
@@ -91,9 +91,13 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
 
     int n, m;
     string strategy;
+    std::lock_guard<std::mutex> lock(ansMutex); 
 
     if (command_of_user.empty()) {
-        ans += "No command received.\n";
+        {
+            //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+            ans += "No command received.\n";
+        }
     } else if (command_of_user == "Newgraph") {
         // Get the number of vertices and edges
         iss >> n >> m;
@@ -101,28 +105,48 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         cout << "Newgraph m: " << m << endl;
 
         if (n <= 0 || m < 0) {
-            ans += "Invalid graph parameters. \n";
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "Invalid graph parameters. \n";
+            }
         } else {
             auto newEdges = Newgraph(iss, n, m);  // Store the result in a local variable
             clientGraph.setEdges(newEdges);       // Pass the local variable to setEdges
             clientGraph.setnumVertices(n);
-            ans += "Graph created:\n";
+
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "Graph created:\n";
+            }
             for (int i = 0; i < 2 * m; i = i + 2) {
                 int u, v, w, id;
                 tie(u, v, w, id) = clientGraph.getEdge(i);
-                ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
+
+                {
+                    //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                    ans += "Edge " + to_string(i) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
+                }
             }
             iss >> strategy;
             if (strategy == "prim") {
                 clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
                 isMST = true;
-                ans += MST_to_string(clientMST);
+                {
+                    //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                    ans += MST_to_string(clientMST);
+                }
             } else if (strategy == "kruskal") {
                 clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
                 isMST = true;
-                ans += MST_to_string(clientMST);
+                {
+                    //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                    ans += MST_to_string(clientMST);
+                }
             } else {
-                ans += "Invalid strategy.\n";
+                {
+                    //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                    ans += "Invalid strategy.\n";
+                }
             }
         }
     } else if (command_of_user == "Newedge") {
@@ -131,18 +155,21 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         cout << "Newedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
             clientGraph.addEdge(from, to, weight, clientGraph.getSize());
-            ans += "Edge added from " + to_string(from) + " to " + to_string(to) + "\n";
-            // update the mst graph
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "Edge added from " + to_string(from) + " to " + to_string(to) + "\n";
+            }
+            // Update the MST graph
             if (clientMST.getStrategy() == "prim") {
                 clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
             } else if (clientMST.getStrategy() == "kruskal") {
                 clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
             }
-
-        }
-
-        else {
-            ans += "No graph found for adding edge.\n";
+        } else {
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "No graph found for adding edge.\n";
+            }
         }
     } else if (command_of_user == "Removeedge") {
         int from, to;
@@ -150,17 +177,21 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         cout << "Removeedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
             clientGraph.removeEdge(from, to);
-            ans += "Edge removed from " + to_string(from) + " to " + to_string(to) + "\n";
-
-            // update the mst graph
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "Edge removed from " + to_string(from) + " to " + to_string(to) + "\n";
+            }
+            // Update the MST graph
             if (clientMST.getStrategy() == "prim") {
                 clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
             } else if (clientMST.getStrategy() == "kruskal") {
                 clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
             }
-
         } else {
-            ans += "No graph found for removing edge.\n";
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "No graph found for removing edge.\n";
+            }
         }
     } else if (command_of_user == "Reduceedge") {
         int id, newWeight;
@@ -168,71 +199,67 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         cout << "Reduceedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
             clientGraph.reduceEdges(id, newWeight);
-            ans += "Edge reduced with id " + to_string(id) + " to weight " + to_string(newWeight) + "\n";
-
-            // update the mst graph
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "Edge reduced with id " + to_string(id) + " to weight " + to_string(newWeight) + "\n";
+            }
+            // Update the MST graph
             if (clientMST.getStrategy() == "prim") {
                 clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
             } else if (clientMST.getStrategy() == "kruskal") {
                 clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
             }
-
         } else {
-            ans += "No graph found for reducing edge.\n";
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "No graph found for reducing edge.\n";
+            }
         }
-    }  // Leader-Follower with shared answer and mutex
-    else if (command_of_user == "Leader_Follower") {
+    } else if (command_of_user == "Leader_Follower") {
         if (!isMST) {
-            ans += "No MST found.\n";
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "No MST found.\n";
+            }
         } else {
-            // Use a promise to get the result
             auto clientTask = std::make_tuple(&clientMST, &clientAns);
             // Pass the pointer to the tuple to the threadPool
             threadPool.addEventHandler(&clientTask);
-            // Add a small delay to allow pipeline to process
+            // Add a small delay to allow Leader_Follower to process
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            // auto promise = std::make_shared<std::promise<std::string>>();
-            // auto future = promise->get_future();
 
-            // threadPool.addEventHandler([&clientMST, promise]() {
-            //     MST_stats mst_stats;
-            //     std::ostringstream localAns;
-            //     localAns << "Thread " << std::this_thread::get_id() << "\n";
-            //     localAns << " Longest path: " << mst_stats.getLongestDistance(clientMST) << "\n";
-            //     localAns << " Shortest path: " << mst_stats.getShortestDistance(clientMST) << "\n";
-            //     localAns << " Average path: " << mst_stats.getAverageDistance(clientMST) << "\n";
-            //     localAns << " Total weight: " << mst_stats.getTotalWeight(clientMST) << "\n";
-            //     promise->set_value(localAns.str());
-            // });
-
-            // Wait for result
-            // try {
-            //     ans += future.get();  // Get the result when ready
-            // } catch (const exception &e) {
-            //     ans += "Error processing request: " + string(e.what()) + "\n";
-            // }
-            ans += clientAns;
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += clientAns;
+            }
         }
     } else if (command_of_user == "Pipeline") {
         if (!isMST) {
-            ans += "No MST found.\n";
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += "No MST found.\n";
+            }
         } else {
             auto clientTask = std::make_tuple(&clientMST, &clientAns);
-
             // Pass the pointer to the tuple to the pipeline
             pipeline.addRequest(&clientTask);
-
             // Add a small delay to allow pipeline to process
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-            // Append the processed result to ans
-            ans += clientAns;
+            {
+                //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+                ans += clientAns;
+            }
         }
     } else {
-        ans += "Unknown command.\n";
+        {
+            //std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
+            ans += "Unknown command.\n";
+        }
     }
     return ans;
 }
+
 // get sockaddr, IPv4 or IPv6:
 void *get_in_addr(struct sockaddr *sa) {
     if (sa->sa_family == AF_INET) {
@@ -282,6 +309,9 @@ vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, uns
     return random_graph;
 }
 int main() {
+    mutex mtx;
+
+
     fd_set master;    // master file descriptor list
     fd_set read_fds;  // temp file descriptor list for select()
     int fdmax;        // maximum file descriptor number
@@ -388,8 +418,6 @@ int main() {
                         // Create a new graph for this client
                         lock_guard<mutex> lock(mtx);
                         std::get<0>(map_clients[newfd]) = Graph();  // Create an empty graph for the new client
-
-                        // map_clients[newfd].first = Graph();  // Create an empty graph for the new client
                     }
                 } else {
                     // handle data from a client
@@ -409,12 +437,32 @@ int main() {
                         // we got some data from a client
                         buf[nbytes] = '\0';  // null-terminate the buffer
 
+                        // // check if it 'kill' command (start with kill)
+                        // if(strncmp(buf, "kill", 4) == 0) {
+                        //     // close the server
+                        //     cout << "Shutting down the server..." << endl;
+                        //     close(listener);  // Close the listener socket
+                        //     //close all the client sockets
+                        //     for (int j = 0; j <= fdmax; j++) {
+                        //         if (FD_ISSET(j, &master)) {
+                        //             close(j);
+                        //         }
+                        //     }
+                        //     // stop the lf and pipline
+                        //     lock_guard<mutex> lock(mtx);
+                        //     pipeline.stop();
+
+                        //     threadPool.stop();
+
+                        //     // Exit the program
+                        //     exit(0);          // Exit the program
+                        // }
+
                         // Process the command for this client
+                        
                         lock_guard<mutex> lock(mtx);
                         string response = graph_user_commands(string(buf), get<0>(map_clients[i]), get<1>(map_clients[i]), get<2>(map_clients[i]));
-
-                        // string response = graph_user_commands(string(buf), map_clients[i].first, map_clients[i].second,);
-
+                        
                         // Send the response back to the client
                         if (send(i, response.c_str(), response.length(), 0) == -1) {
                             perror("send");
@@ -424,7 +472,5 @@ int main() {
             }
         }
     }
-    pipeline.stop();  // Stop the pipeline when the server is shutting down
-
     return 0;
 }

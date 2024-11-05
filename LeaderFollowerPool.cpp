@@ -18,6 +18,7 @@ LeaderFollowerPool::LeaderFollowerPool(int numThreads)
 }
 
 LeaderFollowerPool::~LeaderFollowerPool() {
+
     stop();
 }
 
@@ -30,6 +31,8 @@ void LeaderFollowerPool::addEventHandler(void* task) {
 }
 
 void LeaderFollowerPool::mainFunction(void* task) {
+    std::lock_guard<std::mutex> lock(mutexClientAns);
+
     MST_stats mst_stats;
 
     auto* taskTuple = static_cast<tuple<MST_graph*, string*>*>(task);
@@ -42,6 +45,7 @@ void LeaderFollowerPool::mainFunction(void* task) {
     localAns << " Shortest path: " << mst_stats.getShortestDistance(*clientMST) << "\n";
     localAns << " Average path: " << mst_stats.getAverageDistance(*clientMST) << "\n";
     localAns << " Total weight: " << mst_stats.getTotalWeight(*clientMST) << "\n";
+
     *clientAns += localAns.str();
 }
 
@@ -50,10 +54,16 @@ void LeaderFollowerPool::leaderRole() {
         void* task = nullptr;
         {
             std::unique_lock<std::mutex> lock(mutexqueue);
-            cv_.wait(lock, [this] { return !eventQueue_.empty() || stopFlag_; });
+            cv_.wait(lock, [this] { 
+                std::lock_guard<std::mutex> stopLock(mutexstop);  // Lock mutexstop for stopFlag_ check
+                return !eventQueue_.empty() || stopFlag_; 
+            });
 
-            if (stopFlag_ && eventQueue_.empty()) {
-                return;  // Shutdown check
+            {
+                std::lock_guard<std::mutex> stopLock(mutexstop);  // Lock mutexstop for stopFlag_ check
+                if (stopFlag_ && eventQueue_.empty()) {
+                    return;  // Shutdown check
+                }
             }
 
             if (!eventQueue_.empty()) {
@@ -76,26 +86,22 @@ void LeaderFollowerPool::leaderRole() {
 }
 
 void LeaderFollowerPool::followerRole() {
+    lock_guard<mutex> lock(mutexqueue);
     cv_.notify_one();  // Wake up next thread to be leader
 }
 
 // Method to gracefully stop the thread pool
 void LeaderFollowerPool::stop() {
     {
-        std::lock_guard<std::mutex> lock(mutexqueue);
-
+        std::lock_guard<std::mutex> lock(mutexstop);  // Lock the mutex for the queue
         stopFlag_ = true;
     }
+    cv_.notify_all();  // Notify all waiting threads with the lock held
 
-    cv_.notify_all();  // Wake up all threads
     for (auto& worker : workers_) {
         if (worker.joinable()) {
             worker.join();  // Wait for all worker threads to finish
         }
     }
+    cout << "LeaderFollowerPool stopped all worker threads." << endl;
 }
-
-// void waitForCompletion() {
-//         std::unique_lock<std::mutex> lock(mutexqueue);
-//         cv_.wait(lock, [this] { return completed; });
-// }
