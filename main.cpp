@@ -68,6 +68,7 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
     }
     return graph;
 }
+
 string MST_to_string(const MST_graph &mst) {
     string ans;
     vector<tuple<int, int, int, int>> edges = mst.getEdges();
@@ -240,8 +241,6 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             auto clientTask = std::make_tuple(&clientMST, &clientAns,fdclient);
             // Pass the pointer to the tuple to the pipeline
             pipeline.addRequest(&clientTask);
-            // Add a small delay to allow pipeline to process
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
             {
                 // std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
