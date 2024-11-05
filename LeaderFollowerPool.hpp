@@ -10,13 +10,16 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <sys/types.h>
+#include <sys/socket.h>  // Include this header for the send function
+
 
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
 
 class LeaderFollowerPool {
    public:
-    LeaderFollowerPool(int numThreads);
+    LeaderFollowerPool(int numThreads, std::mutex& ansMutex);
 
     // LeaderFollowerPool(int numThreads, const MST_graph& mst);
     ~LeaderFollowerPool();
@@ -31,17 +34,17 @@ class LeaderFollowerPool {
    private:
     void leaderRole();    // Function for the leader thread
     void followerRole();  // Function for the followers
-void mainFunction(void* task);
+    void mainFunction(void* task);
 
-
-    int numThreads_;                      // Total number of threads in the pool
-    std::queue<void * > eventQueue_;  // Queue of events to process
-    std::vector<std::thread> workers_;    // List of thread objects
-    std::mutex mutexstop;                 // Mutex for synchronization
-    std::mutex mutexqueue;                // Mutex for synchronization
-    std::mutex mutexClientAns;            // Mutex for synchronization
-    std::condition_variable cv_;          // Condition variable for waiting threads
-    bool stopFlag_;                       // Flag to stop the thread pool
+    int numThreads_;                    // Total number of threads in the pool
+    std::queue<void*> eventQueue_;      // Queue of events to process
+    std::vector<std::thread> workers_;  // List of thread objects
+    std::mutex mutexstop;               // Mutex for synchronization
+    std::mutex mutexqueue;              // Mutex for synchronization
+    std::mutex &ansMutex;                // Mutex for synchronization
+    std::mutex mutexClientAns;          // Mutex for synchronization
+    std::condition_variable cv_;        // Condition variable for waiting threads
+    bool stopFlag_;                     // Flag to stop the thread pool
 };
 
 #endif  // THREAD_POOL_HPP
