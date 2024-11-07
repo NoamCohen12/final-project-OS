@@ -1,0 +1,11 @@
+==217466== Helgrind, a thread error detector
+==217466== Copyright (C) 2007-2017, and GNU GPL'd, by OpenWorks LLP et al.
+==217466== Using Valgrind-3.18.1 and LibVEX; rerun with -h for copyright info
+==217466== Command: ./main -l
+==217466== Parent PID: 166244
+==217466== 
+==217466== 
+==217466== Use --history-level=approx or =none to gain increased speed, at
+==217466== the cost of reduced accuracy of conflicting-access information
+==217466== For lists of detected and suppressed errors, rerun with: -s
+==217466== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 194 from 19)

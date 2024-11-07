@@ -34,6 +34,10 @@ void LeaderFollowerPool::mainFunction(void* task) {
     MST_stats mst_stats;
 
     auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
+    if (!taskTuple) {
+        cout << "Error: Invalid task tuple" << endl;
+    return;
+}
     MST_graph* clientMST = std::get<0>(*taskTuple);
     string* clientAns = std::get<1>(*taskTuple);
     int fdclient = std::get<2>(*taskTuple);
@@ -44,12 +48,13 @@ void LeaderFollowerPool::mainFunction(void* task) {
     localAns << " Shortest path: " << mst_stats.getShortestDistance(*clientMST) << "\n";
     localAns << " Average path: " << mst_stats.getAverageDistance(*clientMST) << "\n";
     localAns << " Total weight: " << mst_stats.getTotalWeight(*clientMST) << "\n";
+        delete taskTuple;  // Clean up dynamically allocated memory
 
     // send the response back to the client
     if (send(fdclient, localAns.str().c_str(), localAns.str().length(), 0) == -1) {
         perror("send");
     }
-    // *clientAns += localAns.str();
+
 }
 
 void LeaderFollowerPool::leaderRole() {

@@ -24,8 +24,8 @@ struct ActiveObject {
     std::mutex acMutex;
     std::condition_variable cv;
     bool stopFlag;
-    std::function<void(void*, mutex&)> function;// The function that the worker will execute
-    queue<void*>* nextQueueActiveObject;  // Queue for the next ActiveObject
+    std::function<void(void*, mutex&)> function;  // The function that the worker will execute
+    queue<void*>* nextQueueActiveObject;          // Queue for the next ActiveObject
     int id;
 
     ActiveObject(std::function<void(void*, mutex&)> func, int id) : stopFlag(false), function(func), workerThread(nullptr), nextQueueActiveObject(nullptr), id(id) {}
@@ -84,16 +84,20 @@ class Pipeline {
     std::vector<ActiveObject> activeObjects;
     //     // Task 1: Longest Distance
     static void taskLongestDistance(void* task, mutex& send_mutex) {
-        //  std::lock_guard<std::mutex> lock(ansMutex);
-        // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated longest distance" << std::endl;
-
-        auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
-        MST_graph* mst_graph = std::get<0>(*taskTuple);
-        string* clientAns = std::get<1>(*taskTuple);
-        MST_stats stats;
-        {
-            lock_guard<mutex> lock(send_mutex);
-            *clientAns += "Longest Distance: " + std::to_string(stats.getLongestDistance(*mst_graph)) + "\n";
+        std::cout << "task type: " << typeid(task).name() << std::endl;
+        auto* taskTuple = static_cast<std::tuple<MST_graph*, string*, int>*>(task);
+        if (taskTuple != nullptr) {
+            MST_stats stats;
+            MST_graph* mst_graph = std::get<0>(*taskTuple);
+            string* clientAns = std::get<1>(*taskTuple);
+            if (mst_graph != nullptr && clientAns != nullptr) {
+                {
+                    lock_guard<mutex> lock(send_mutex);
+                    *clientAns += "Longest Distance: " + std::to_string(stats.getLongestDistance(*mst_graph)) + "\n";
+                }
+            }
+        } else {
+            cout << "Error: Invalid task tuple" << endl;
         }
     }
 
@@ -147,7 +151,7 @@ class Pipeline {
             std::lock_guard<std::mutex> lock(send_mutex);
             *clientAns += "Total Weight: " + std::to_string(stats.getTotalWeight(*mst_graph)) + "\n";
 
-            // cout << *clientAns << endl;
+            delete taskTuple;
 
             // send the response back to the client
             if (send(fdclient, clientAns->c_str(), clientAns->size(), 0) == -1) {
