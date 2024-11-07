@@ -12,20 +12,15 @@
     }
 
 int MST_stats::getLongestDistance(const MST_graph& mst) {
-    cout << "here0 " << endl;
     vector<vector<int>> alldistances = mst.getAllDistances();
-    cout << "here1 " << endl;
     int longestDistance = INT_MIN;
     for (int i = 0; i < alldistances.size(); i++) {
-        cout << "here2 " << endl;
         for (int j = 0; j < alldistances[i].size(); j++) {
             if (alldistances[i][j] > longestDistance) {
-                cout << "here3 " << endl;
                 longestDistance = alldistances[i][j];
             }
         }
     }
-    cout << "here4 " << endl;
     return longestDistance;
 }
 

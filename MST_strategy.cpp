@@ -33,7 +33,7 @@ MST_graph MST_strategy::kruskal(const vector<tuple<int, int, int, int>>& graph_e
             spanning_tree.emplace_back(from, to, cost, id);
         }
     }
-    cout << "Kruskal's Algorithm\n";
+    // cout << "Kruskal's Algorithm\n";
     return MST_graph(spanning_tree,"kruskal");
 }
 
@@ -82,7 +82,7 @@ MST_graph MST_strategy::prim(const vector<tuple<int, int, int, int>>& edges, int
     // Now call your _prim function, assuming it takes adj and n
     vector<tuple<int, int, int, int>> spanning_tree = _prim(adj, n);
 
-    cout << "Prim's Algorithm\n";
+    // cout << "Prim's Algorithm\n";
 
     // Return the MST result as a string
     return MST_graph(spanning_tree,"prim");

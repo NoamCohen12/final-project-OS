@@ -39,7 +39,7 @@ class Graph {
         //print all parmeters
         int u, v, w, id;
         tie(u, v, w, id) = edges[i];
-        cout << "Edge " << i << ": " << u << " " << v << " " << w << endl;
+        // cout << "Edge " << i << ": " << u << " " << v << " " << w << endl;
         return edges[i];
     }
     //get the number of vertices

@@ -24,11 +24,11 @@ struct ActiveObject {
     std::mutex acMutex;
     std::condition_variable cv;
     bool stopFlag;
-    std::function<void(void*)> function;  // The function that the worker will execute
+    std::function<void(void*, mutex&)> function;// The function that the worker will execute
     queue<void*>* nextQueueActiveObject;  // Queue for the next ActiveObject
     int id;
 
-    ActiveObject(std::function<void(void*)> func, int id) : stopFlag(false), function(func), workerThread(nullptr), nextQueueActiveObject(nullptr), id(id) {}
+    ActiveObject(std::function<void(void*, mutex&)> func, int id) : stopFlag(false), function(func), workerThread(nullptr), nextQueueActiveObject(nullptr), id(id) {}
 
     // Copy constructor
     ActiveObject(const ActiveObject& other)
@@ -38,10 +38,10 @@ struct ActiveObject {
         //  std::lock_guard<std::mutex> lock(acMutex);
         tasks.push(task);
         cv.notify_one();
-        cout << "Task added to ActiveObject. Queue size: " << tasks.size() << endl;
+        // cout << "Task added to ActiveObject. Queue size: " << tasks.size() << endl;
     }
 
-    void runTasks(vector<ActiveObject>& activeObjects) {
+    void runTasks(vector<ActiveObject>& activeObjects, mutex& send_mutex) {
         while (true) {
             void* task;
             {
@@ -61,14 +61,14 @@ struct ActiveObject {
                 lock.unlock();
 
                 if (task) {
-                    function(task);
-                    cout << "Task executed. Thread ID: " << std::this_thread::get_id() << endl;
+                    function(task, send_mutex);
+                    // cout << "Task executed. Thread ID: " << std::this_thread::get_id() << endl;
 
                     if (nextQueueActiveObject) {
                         std::lock_guard<std::mutex> nextLock(activeObjects[id + 1].acMutex);  // Lock before modifying next queue
                         nextQueueActiveObject->push(task);
                         activeObjects[id + 1].cv.notify_one();
-                        cout << "Task passed to next ActiveObject. Thread ID: " << std::this_thread::get_id() << endl;
+                        // cout << "Task passed to next ActiveObject. Thread ID: " << std::this_thread::get_id() << endl;
                     }
                 }
             }
@@ -83,51 +83,59 @@ class Pipeline {
     std::condition_variable cv_;
     std::vector<ActiveObject> activeObjects;
     //     // Task 1: Longest Distance
-    static void taskLongestDistance(void* task) {
+    static void taskLongestDistance(void* task, mutex& send_mutex) {
         //  std::lock_guard<std::mutex> lock(ansMutex);
-        std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated longest distance" << std::endl;
+        // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated longest distance" << std::endl;
 
-        auto* taskTuple = static_cast<tuple<MST_graph*, string*,int>*>(task);
+        auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
         MST_graph* mst_graph = std::get<0>(*taskTuple);
         string* clientAns = std::get<1>(*taskTuple);
         MST_stats stats;
-        *clientAns += "Longest Distance: " + std::to_string(stats.getLongestDistance(*mst_graph)) + "\n";
+        {
+            lock_guard<mutex> lock(send_mutex);
+            *clientAns += "Longest Distance: " + std::to_string(stats.getLongestDistance(*mst_graph)) + "\n";
+        }
     }
 
     // Task 2: Shortest Distance
-    static void taskShortestDistance(void* task) {
+    static void taskShortestDistance(void* task, mutex& send_mutex) {
         //  std::lock_guard<std::mutex> lock(ansMutex);
 
-        std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated shortest distance" << std::endl;
+        // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated shortest distance" << std::endl;
 
-        auto* taskTuple = static_cast<tuple<MST_graph*, string*,int>*>(task);
+        auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
         MST_graph* mst_graph = std::get<0>(*taskTuple);
         string* clientAns = std::get<1>(*taskTuple);
 
         MST_stats stats;
-        *clientAns += "Shortest Distance: " + std::to_string(stats.getShortestDistance(*mst_graph)) + "\n";
+        {
+            std::lock_guard<std::mutex> lock(send_mutex);
+            *clientAns += "Shortest Distance: " + std::to_string(stats.getShortestDistance(*mst_graph)) + "\n";
+        }
     }
 
     // Task 3: Average Distance
-    static void taskAverageDistance(void* task) {
+    static void taskAverageDistance(void* task, mutex& send_mutex) {
         //  std::lock_guard<std::mutex> lock(ansMutex);
 
-        std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated average distance" << std::endl;
+        // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated average distance" << std::endl;
 
-        auto* taskTuple = static_cast<tuple<MST_graph*, string*,int>*>(task);
+        auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
         MST_graph* mst_graph = std::get<0>(*taskTuple);
         string* clientAns = std::get<1>(*taskTuple);
 
         MST_stats stats;
-        *clientAns += "Average Distance: " + std::to_string(stats.getAverageDistance(*mst_graph)) + "\n";
+        {
+            std::lock_guard<std::mutex> lock(send_mutex);
+            *clientAns += "Average Distance: " + std::to_string(stats.getAverageDistance(*mst_graph)) + "\n";
+        }
     }
 
     // Task 4: Total Weight
-    static void taskTotalWeight(void* task) {
+    static void taskTotalWeight(void* task, mutex& send_mutex) {
         //     std::lock_guard<std::mutex> lock(ansMutex);
 
-        
-        std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated total weight" << std::endl;
+        // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated total weight" << std::endl;
 
         auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
         MST_graph* mst_graph = std::get<0>(*taskTuple);
@@ -135,13 +143,16 @@ class Pipeline {
         int fdclient = std::get<2>(*taskTuple);
 
         MST_stats stats;
-        *clientAns += "Total Weight: " + std::to_string(stats.getTotalWeight(*mst_graph)) + "\n";
+        {
+            std::lock_guard<std::mutex> lock(send_mutex);
+            *clientAns += "Total Weight: " + std::to_string(stats.getTotalWeight(*mst_graph)) + "\n";
 
-        cout << *clientAns << endl;
+            // cout << *clientAns << endl;
 
-        // send the response back to the client
-        if (send(fdclient, clientAns->c_str(), clientAns->size(), 0) == -1) {
-            perror("send");
+            // send the response back to the client
+            if (send(fdclient, clientAns->c_str(), clientAns->size(), 0) == -1) {
+                perror("send");
+            }
         }
     }
 
@@ -156,7 +167,7 @@ class Pipeline {
         for (int i = 0; i < activeObjects.size() - 1; ++i) {
             activeObjects[i].nextQueueActiveObject = &activeObjects[i + 1].tasks;
         }
-        cout << "Pipeline initialized with " << activeObjects.size() << " ActiveObjects." << endl;
+        // cout << "Pipeline initialized with " << activeObjects.size() << " ActiveObjects." << endl;
         for (auto& activeObject : activeObjects) {
             // std::mutex* mtx = new std::mutex();                             // creating a new mutex
             //  std::condition_variable* cond = new std::condition_variable();  // creating a new condition variable
@@ -177,13 +188,13 @@ class Pipeline {
         std::lock_guard<std::mutex> lock(activeObjects[0].acMutex);
         activeObjects[0].addTask(task);
         activeObjects[0].cv.notify_one();
-        cout << "Task added to Pipeline (first worker). Initial ActiveObject notified." << endl;
+        // cout << "Task added to Pipeline (first worker). Initial ActiveObject notified." << endl;
     }
 
-    void start() {
+    void start(mutex& send_mutex) {
         // cout << "[DEBUG] Pipeline starting all worker threads." << endl;
         for (auto& activeObject : activeObjects) {
-            activeObject.workerThread = new std::thread(&ActiveObject::runTasks, &activeObject, std::ref(activeObjects));
+            activeObject.workerThread = new std::thread(&ActiveObject::runTasks, &activeObject, std::ref(activeObjects), std::ref(send_mutex));
             // cout << "[DEBUG] Worker thread started for ActiveObject ID: " << activeObject.id << endl;
 
             // cout << "[DEBUG] Worker thread started for ActiveObject." << endl;

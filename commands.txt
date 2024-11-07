@@ -1,20 +1,54 @@
  
- 
- 1. Memcheck
+1. Memcheck
+------------------------------------------------------------------------------------------------------------------------
+    Memcheck is a memory error detector tool within Valgrind that identifies memory-related issues, such as memory leaks,
+    invalid memory access, and usage of uninitialized memory. When run, it tracks each memory allocation and deallocation,
+    helping catch potential bugs early by reporting:
+        Memory leaks: Occurs when allocated memory is not freed, causing potential resource exhaustion.
+        Invalid reads/writes: Accessing memory outside allocated regions, which may cause crashes or data corruption.
+        Uninitialized memory usage: Using memory before it is set to a defined value, which can lead to unpredictable behavior.
+------------------------------------------------------------------------------------------------------------------------
+    steps to run in terminal:
+        a. valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=memecheck_Leader_Follower.txt ./main
+        b. valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=memecheck_Pipeline.txt ./main
+        c. You need to run it once for "Leader_Follower" then compile again and run for "Piplieline".
+        d. ctrl+c and check results in file "memecheck_Leader_Follower.txt", "memecheck_Pipeline.txt".
 
- valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=memecheck_Leader_Follower.txt ./main
-  valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes --verbose --log-file=memecheck_Pipeline.txt ./main
+
+
+2. Helgrind - chack race condition
+------------------------------------------------------------------------------------------------------------------------
+    Helgrind is a thread error detection tool in Valgrind, designed to find data races and synchronization
+    issues in multi-threaded programs. It helps identify problems like:
+        Data races: Occur when two or more threads access shared data simultaneously,
+                    and at least one access is a write, potentially leading to unpredictable results.
+        Incorrect mutex usage: Detects issues with locking mechanisms that may cause deadlocks or inconsistent data states.
+                               Helgrind is invaluable for debugging concurrency issues, improving thread safety, 
+                               and ensuring consistent program behavior under concurrent loads.
+------------------------------------------------------------------------------------------------------------------------
+      steps to run in terminal:
+        a. valgrind --tool=helgrind --log-file=helgrind_Leader_Follower.txt ./main -l
+        b. valgrind --tool=helgrind --log-file=helgrind_Pipeline.txt ./main -l
+        c. You need to run it once for "Leader_Follower" then compile again and run for "Piplieline".
+        d. ctrl+c and check results in file "helgrind_Leader_Follower.txt", "helgrind_Pipeline.txt".
 
 
 
-
-
-
-2. Helgrind
-
-
-          valgrind --tool=helgrind --log-file=helgrind_Leader_Follower.txt ./main -l
-          valgrind --tool=helgrind --log-file=helgrind_Pipeline.txt ./main -l
+3. Callgrind (you may need this: export $(dbus-launch)
+------------------------------------------------------------------------------------------------------------------------
+    Callgrind is a performance profiling tool in Valgrind that analyzes function calls and cache usage. 
+    It tracks function calls and counts instructions executed, which is helpful for 
+    identifying performance bottlenecks and optimizing code. 
+    Key features include:
+        Call graph generation: Shows the sequence and frequency of function calls.
+        Instruction counting: Measures the number of instructions executed, helping identify performance-critical code.
+        Cache profiling: Estimates cache misses, helping locate inefficient memory access patterns.
+------------------------------------------------------------------------------------------------------------------------
+    steps to run in terminal:
+        a. valgrind --tool=cachegrind ./main
+        b. cg_annotate cachegrind.out.<pid>
+        c. ctrl+c and check results in file "callgrind.out.<pid>"
+       
 
 
 

@@ -106,5 +106,5 @@ void LeaderFollowerPool::stop() {
     }
         workers_.clear();  // Clear the worker threads vector
 
-    cout << "LeaderFollowerPool stopped all worker threads." << endl;
+    // cout << "LeaderFollowerPool stopped all worker threads." << endl;
 }

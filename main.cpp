@@ -46,7 +46,7 @@ int listener;  // Global listener for shutdown handling
 
 // Signal handler for graceful shutdown
 void shutdown_handler(int signum) {
-    cout << "\nShutting down the server..." << endl;
+    // cout << "\nShutting down the server..." << endl;
     close(listener);  // Close the listener socket
     exit(0);          // Exit the program
 }
@@ -55,14 +55,14 @@ void shutdown_handler(int signum) {
 // and the input of edge u v with weight w but dont add the reverse edge with weight w'
 vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of_Edge) {
     vector<tuple<int, int, int, int>> graph;
-    cout << "Newgraph" << endl;
+    // cout << "Newgraph" << endl;
     int u, v, w;  // vertex and weight
     for (int i = 0; i < num_of_Edge; ++i) {
         iss >> u >> v >> w;
         // dibug print
-        cout << "Newgraph u: " << u << endl;
-        cout << "Newgraph v: " << v << endl;
-        cout << "Newgraph w: " << w << endl;
+        // cout << "Newgraph u: " << u << endl;
+        // cout << "Newgraph v: " << v << endl;
+        // cout << "Newgraph w: " << w << endl;
         graph.emplace_back(u, v, w, i);
         graph.emplace_back(v, u, w, i);  // Add the reverse edge for undirected graph
     }
@@ -102,8 +102,8 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     } else if (command_of_user == "Newgraph") {
         // Get the number of vertices and edges
         iss >> n >> m;
-        cout << "Newgraph n: " << n << endl;
-        cout << "Newgraph m: " << m << endl;
+        // cout << "Newgraph n: " << n << endl;
+        // cout << "Newgraph m: " << m << endl;
 
         if (n <= 0 || m < 0) {
             {
@@ -153,7 +153,7 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     } else if (command_of_user == "Newedge") {
         int from, to, weight;
         iss >> from >> to >> weight;
-        cout << "Newedge n: " << n << endl;
+        // cout << "Newedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
             clientGraph.addEdge(from, to, weight, clientGraph.getSize());
             {
@@ -175,7 +175,7 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     } else if (command_of_user == "Removeedge") {
         int from, to;
         iss >> from >> to;
-        cout << "Removeedge n: " << n << endl;
+        // cout << "Removeedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
             clientGraph.removeEdge(from, to);
             {
@@ -197,7 +197,7 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     } else if (command_of_user == "Reduceedge") {
         int id, newWeight;
         iss >> id >> newWeight;
-        cout << "Reduceedge n: " << n << endl;
+        // cout << "Reduceedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
             clientGraph.reduceEdges(id, newWeight);
             {
@@ -244,7 +244,7 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
 
             {
                 // std::lock_guard<std::mutex> lock(ansMutex); // Lock before modifying ans
-                ans += clientAns;
+                ans += "done";
             }
         }
     } else {
@@ -313,7 +313,7 @@ int main() {
 
     // Initialize the LeaderFollowerPool once
     threadPool.start();  // Start the LeaderFollowerPool once during server initialization
-    pipeline.start();    // Start the pipeline once during server initialization
+    pipeline.start(mtx); // Start the pipeline once during server initialization
 
     int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
@@ -379,7 +379,7 @@ int main() {
     // keep track of the biggest file descriptor
     fdmax = listener;  // so far, it's this one
 
-    cout << "Server is listening on port " << PORT << endl;
+    // cout << "Server is listening on port " << PORT << endl;
 
     // main loop
     for (;;) {
@@ -404,11 +404,11 @@ int main() {
                         if (newfd > fdmax) {     // keep track of the max
                             fdmax = newfd;
                         }
-                        cout << "selectserver: new connection from "
-                             << inet_ntop(clientAddress.ss_family,
-                                          get_in_addr((struct sockaddr *)&clientAddress),
-                                          remoteIP, INET6_ADDRSTRLEN)
-                             << " on socket " << newfd << endl;
+                        // cout << "selectserver: new connection from "
+                        //      << inet_ntop(clientAddress.ss_family,
+                        //                   get_in_addr((struct sockaddr *)&clientAddress),
+                        //                   remoteIP, INET6_ADDRSTRLEN)
+                        //      << " on socket " << newfd << endl;
 
                         // Create a new graph for this client
                         lock_guard<mutex> lock(mtx);
@@ -420,7 +420,7 @@ int main() {
                         // got error or connection closed by client
                         if (nbytes == 0) {
                             // connection closed
-                            cout << "selectserver: socket " << i << " hung up" << endl;
+                            // cout << "selectserver: socket " << i << " hung up" << endl;
                         } else {
                             perror("recv");
                         }
