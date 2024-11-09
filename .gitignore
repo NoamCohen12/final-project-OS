@@ -1,0 +1,21 @@
+# Ignore build files
+*.o
+*.out
+*.exe
+*.a
+*.so
+
+# Ignore coverage files
+*.gcda
+*.gcno
+coverage.html
+coverage-html/
+
+# Ignore other common generated files
+*.log
+*.tmp
+*.dSYM
+*.swp
+
+# Ignore build directories
+build/

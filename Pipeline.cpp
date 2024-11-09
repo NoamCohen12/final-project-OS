@@ -84,7 +84,7 @@ class Pipeline {
     std::vector<ActiveObject> activeObjects;
     //     // Task 1: Longest Distance
     static void taskLongestDistance(void* task, mutex& send_mutex) {
-        std::cout << "task type: " << typeid(task).name() << std::endl;
+        
         auto* taskTuple = static_cast<std::tuple<MST_graph*, string*, int>*>(task);
         if (taskTuple != nullptr) {
             MST_stats stats;
@@ -103,8 +103,6 @@ class Pipeline {
 
     // Task 2: Shortest Distance
     static void taskShortestDistance(void* task, mutex& send_mutex) {
-        //  std::lock_guard<std::mutex> lock(ansMutex);
-
         // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated shortest distance" << std::endl;
 
         auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
@@ -120,7 +118,6 @@ class Pipeline {
 
     // Task 3: Average Distance
     static void taskAverageDistance(void* task, mutex& send_mutex) {
-        //  std::lock_guard<std::mutex> lock(ansMutex);
 
         // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated average distance" << std::endl;
 
@@ -137,7 +134,6 @@ class Pipeline {
 
     // Task 4: Total Weight
     static void taskTotalWeight(void* task, mutex& send_mutex) {
-        //     std::lock_guard<std::mutex> lock(ansMutex);
 
         // std::cout << "Thread ID: " << std::this_thread::get_id() << " Calculated total weight" << std::endl;
 

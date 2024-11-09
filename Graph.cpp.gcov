@@ -1,0 +1,73 @@
+        -:    0:Source:Graph.cpp
+        -:    0:Graph:main.gcno
+        -:    0:Data:main.gcda
+        -:    0:Runs:1
+        -:    1:#ifndef GRAPH_HPP 
+        -:    2:#define GRAPH_HPP
+        -:    3:#include <algorithm>
+        -:    4:#include <cassert>
+        -:    5:#include <iostream>
+        -:    6:#include <random>
+        -:    7:#include <tuple>  // Include the tuple header
+        -:    8:#include <vector>
+        -:    9:using namespace std;
+        -:   10:
+        -:   11:class Graph {
+        -:   12:   private:
+        -:   13:    std::vector<std::tuple<int, int, int, int>> edges;  // (from, to, weight, id)
+        -:   14:    int numVertices;
+        -:   15:
+        -:   16:   public:
+        2:   17:    Graph(){};  // Default constructor
+        -:   18:    Graph(int n) : numVertices(n) {}
+        -:   19://return the next id
+    #####:   20:    int getSize() {
+    #####:   21:        return edges.size();
+        -:   22:    }
+    #####:   23:    int getnumVertices() {
+    #####:   24:        return numVertices;
+        -:   25:    }
+        -:   26:   
+        1:   27:    void setEdges(vector<std::tuple<int, int, int, int>>& e) {
+        1:   28:        edges = e;
+        1:   29:    }
+        1:   30:    void setnumVertices(int n) {
+        1:   31:        numVertices = n;
+        1:   32:    }
+        -:   33:    //return edges
+    #####:   34:    vector<tuple<int, int, int, int>> getEdges() {
+    #####:   35:        return edges;
+        -:   36:    }
+        3:   37:    tuple<int,int,int,int> getEdge(int i) {
+        -:   38:       // cout << "getEdge" << endl;
+        -:   39:        //print all parmeters
+        -:   40:        int u, v, w, id;
+        3:   41:        tie(u, v, w, id) = edges[i];
+        -:   42:        // cout << "Edge " << i << ": " << u << " " << v << " " << w << endl;
+        3:   43:        return edges[i];
+        -:   44:    }
+        -:   45:    //get the number of vertices
+        -:   46:    int getNumVertices() {
+        -:   47:        return numVertices;
+        -:   48:    }
+        -:   49:
+    #####:   50:    void addEdge(int from, int to, int weight, int id) {
+    #####:   51:        edges.emplace_back(from, to, weight, id);
+    #####:   52:    }
+    #####:   53:    void removeEdge(int from, int to) {
+    #####:   54:        edges.erase(std::remove_if(edges.begin(), edges.end(), [from, to](const std::tuple<int, int, int, int>& edge) {
+    #####:   55:            return std::get<0>(edge) == from && std::get<1>(edge) == to;
+    #####:   56:        }), edges.end());
+    #####:   57:    }
+    #####:   58:    void reduceEdges(int id ,int newWhight) {
+    #####:   59:        for (auto& edge : edges) {
+    #####:   60:            if (std::get<3>(edge) == id) {
+    #####:   61:                std::get<2>(edge) = newWhight;
+        -:   62:            }
+        -:   63:        }
+    #####:   64:    }
+        -:   65:
+        -:   66:};
+        -:   67:#endif // GRAPH_HPP
+        -:   68:
+        -:   69:

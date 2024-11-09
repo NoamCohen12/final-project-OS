@@ -1,0 +1,4 @@
+compile with -fprofile-arcs -ftest-coverage
+
+run 
+gcov -r  main cpp - make just the relevant fiels 

@@ -63,10 +63,15 @@ MST_graph::MST_graph(vector<tuple<int, int, int, int>> edges, string strategy) {
 }
 
 // Function to convert the MST graph to a string
-string MST_graph::to_string() const {
-    int m = edges.size();
-    int n = numVertices;
-    string result;
-    result += "MST created:\n";
-    return result;
+string MST_graph::toString() const{
+    string ans;
+    vector<tuple<int, int, int, int>> edges = this->getEdges();
+
+    for (const auto &e : edges) {
+        int u, v, w, id;
+        tie(u, v, w, id) = e;
+        ans += "Edge " + std::to_string(id) + ": " + std::to_string(u) + " " + std::to_string(v) + " " + std::to_string(w) + "\n";
+    }
+
+    return ans;
 }

@@ -1,4 +1,4 @@
-CXX = clang++ -g -gdwarf-4
+CXX = g++ -g -gdwarf-4 -fprofile-arcs -ftest-coverage
 
 .PHONY: all clean 
 
@@ -36,5 +36,7 @@ Pipeline.o: Pipeline.cpp
 
 
 
+
+
 clean:
-	rm -f *.o main 
+	rm -f *.o main *.gcda *.gcno *.gcov coverage.html

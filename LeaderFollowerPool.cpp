@@ -55,6 +55,7 @@ void LeaderFollowerPool::mainFunction(void* task) {
         perror("send");
     }
 
+
 }
 
 void LeaderFollowerPool::leaderRole() {
