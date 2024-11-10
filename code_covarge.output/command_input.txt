@@ -1,0 +1,14 @@
+nc localhost 9034
+               (space) - No command received.
+Newgraph -2 0 
+prim - No graph found.
+kruskal - No graph found.
+Newgraph 3 3 0 1 2 1 2 4 0 2 10
+Removeedge 0 2 
+Newedge 0 2 10
+Reduceedge 0 1 100
+prim
+kruskal
+Leader_Follower
+Pipeline 
+5112

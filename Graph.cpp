@@ -48,35 +48,71 @@ class Graph {
     }
 
     void addEdge(int from, int to, int weight, int id) {
-        edges.emplace_back(from, to, weight, id-1);
-         edges.emplace_back(to, from, weight, -2);
+        edges.emplace_back(from, to, weight, id - 2);
+        edges.emplace_back(to, from, weight, -2);
+    }
 
-    }
+    // remove the edgefrom to and to from
+    // erase the edge from to
     void removeEdge(int from, int to) {
-        edges.erase(std::remove_if(edges.begin(), edges.end(), [from, to](const std::tuple<int, int, int, int>& edge) {
-                        return std::get<0>(edge) == from && std::get<1>(edge) == to;
-                    }),
-                    edges.end());
-    }
-    void reduceEdges(int id, int newWhight) {
-        for (auto& edge : edges) {
-            if (std::get<3>(edge) == id) {
-                std::get<2>(edge) = newWhight;
+        for (int i = 0; i < edges.size(); i++) {
+            int u, v, w, id;
+            tie(u, v, w, id) = edges[i];
+            if (u == from && v == to) {
+                edges.erase(edges.begin() + i);
+                break;
             }
+        }
+        for (int i = 0; i < edges.size(); i++) {
+            int u, v, w, id;
+            tie(u, v, w, id) = edges[i];
+            if (u == to && v == from) {
+                edges.erase(edges.begin() + i);
+                break;
+            }
+        }
+
+        
+    }
+
+    void reduceEdges(int from,int to, int newWhight) {
+        //change weight from to and to from 
+        for (int i = 0; i < edges.size(); i++) {
+            int u, v, w, id;
+            tie(u, v, w, id) = edges[i];
+            if (u == from && v == to || u == to && v == from) {
+                edges[i] = make_tuple(u, v, newWhight, id);
+                edges[i] = make_tuple(v, u, newWhight, id);
+            }
+        }
+
+
+
+         
+            
+      
+        for (size_t i = 0; i < edges.size(); i++) {
+            int u, v, w, id;
+            tie(u, v, w, id) = edges[i];
+            cout << " edge : " << u << " v:  " << v << " w: " << w << " id:  " << id << endl;
         }
     }
     // print edge just one side to - from not from - to
-    
     string toString() {
         string ans = "";
-        for (int i = 0; i < edges.size() ; i = i + 2) {
+        cout << "toString called" << endl;
+        for (int i = 0; i < edges.size(); i++) {
             int u, v, w, id;
             tie(u, v, w, id) = this->getEdge(i);
-            if(id == -2){
-                continue;   
+            cout << "Processing edge " << i << ": " << u << " " << v << " " << w << " " << id << endl;
+            if (id == -2) {
+                cout << "Skipping reverse edge " << i << endl;
+                continue;
             }
-                ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
+            ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
+            cout << "Edge added to string: " << "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) << endl;
         }
+        cout << "toString completed" << endl;
         return ans;
     }
 };

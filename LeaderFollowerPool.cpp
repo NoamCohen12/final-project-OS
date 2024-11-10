@@ -24,38 +24,34 @@ LeaderFollowerPool::~LeaderFollowerPool() {
 void LeaderFollowerPool::addEventHandler(void* task) {
     std::lock_guard<std::mutex> lock(mutexqueue);
     eventQueue_.push(task);
-
     cv_.notify_one();  // Notify the leader thread to handle the event
 }
 
 void LeaderFollowerPool::mainFunction(void* task) {
-    std::lock_guard<std::mutex> lock(ansMutex);
-
+    std::lock_guard<std::mutex> lock(ansMutex);  // Lock the shared answer stream
     MST_stats mst_stats;
 
     auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
     if (!taskTuple) {
         cout << "Error: Invalid task tuple" << endl;
-    return;
-}
+        return;
+    }
     MST_graph* clientMST = std::get<0>(*taskTuple);
     string* clientAns = std::get<1>(*taskTuple);
     int fdclient = std::get<2>(*taskTuple);
 
-    std::ostringstream localAns;
+    std::ostringstream localAns;  // Local answer stream
     localAns << "Thread " << std::this_thread::get_id() << "\n";
     localAns << " Longest path: " << mst_stats.getLongestDistance(*clientMST) << "\n";
     localAns << " Shortest path: " << mst_stats.getShortestDistance(*clientMST) << "\n";
     localAns << " Average path: " << mst_stats.getAverageDistance(*clientMST) << "\n";
     localAns << " Total weight: " << mst_stats.getTotalWeight(*clientMST) << "\n";
-        delete taskTuple;  // Clean up dynamically allocated memory
+    delete taskTuple;  // Clean up dynamically allocated memory
 
     // send the response back to the client
     if (send(fdclient, localAns.str().c_str(), localAns.str().length(), 0) == -1) {
         perror("send");
     }
-
-
 }
 
 void LeaderFollowerPool::leaderRole() {
@@ -110,7 +106,7 @@ void LeaderFollowerPool::stop() {
             worker.join();  // Wait for all worker threads to finish
         }
     }
-        workers_.clear();  // Clear the worker threads vector
+    workers_.clear();  // Clear the worker threads vector
 
     // cout << "LeaderFollowerPool stopped all worker threads." << endl;
 }

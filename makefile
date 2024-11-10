@@ -1,6 +1,6 @@
 CXX = g++ -g -gdwarf-4 -fprofile-arcs -ftest-coverage
 
-.PHONY: all clean 
+.PHONY: all clean run_tests coverage
 
 all: main 
 
@@ -24,7 +24,7 @@ MST_strategy.o: MST_strategy.cpp
 
 union_find.o: union_find.cpp
 	$(CXX) -c -o $@ $^ 
-	
+    
 Graph.o: Graph.cpp
 	$(CXX) -c -o $@ $^ 
 
@@ -34,9 +34,10 @@ LeaderFollowerPool.o: LeaderFollowerPool.cpp
 Pipeline.o: Pipeline.cpp
 	$(CXX) -c -o $@ $^	
 
-
-
-
+gcov_coverage: main
+	./main
+	gcov Graph.cpp MST_graph.cpp MST_stats.cpp main.cpp Pipeline.cpp LeaderFollowerPool.cpp union_find.cpp MST_strategy.cpp
 
 clean:
-	rm -f *.o main *.gcda *.gcno *.gcov coverage.html
+	rm -f *.o main *.gcda *.gcno *.gcov coverage.info
+	rm -rf coverage

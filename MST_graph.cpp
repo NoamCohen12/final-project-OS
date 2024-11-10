@@ -1,10 +1,5 @@
 #include "MST_graph.hpp"
 
-// MST_graph(vector<tuple<int, int, int, int>> edges) : edges(edges) {
-//     numVertices = edges.size() + 1;
-//     alldistances = calculateWeightMatrix(edges.size() + 1, edges);
-// };
-
 // Helper function to perform DFS and accumulate the path weight between two vertices
 bool dfs(int current, int target, const vector<vector<tuple<int, int, int>>>& adj, vector<bool>& visited, int& path_weight) {
     if (current == target) return true;  // Found the target vertex

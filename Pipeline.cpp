@@ -1,6 +1,5 @@
 #include <sys/socket.h>  // Include this header for the send function
 #include <sys/types.h>
-
 #include <condition_variable>
 #include <functional>
 #include <iostream>
@@ -10,7 +9,6 @@
 #include <sstream>
 #include <thread>
 #include <vector>
-
 #include "Graph.cpp"
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"

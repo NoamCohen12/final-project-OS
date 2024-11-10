@@ -37,7 +37,6 @@ unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client
 std::mutex lfMutex;                                               // Declare as static to ensure it's shared across function calls
 LeaderFollowerPool threadPool(NUM_THREADS, lfMutex);              // Create a thread pool object
 Pipeline pipeline;
-
 MST_strategy mst;
 atomic<bool> isMST{false};
 
@@ -100,18 +99,30 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         }
 
     } else if (command_of_user == "prim") {
-        clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
-        clientMST.setStrategy("prim");
-        isMST = true;
-        ans += "MST created using Prim's Algorithm.\n";
-        ans += clientMST.toString();
+        if (clientGraph.getEdges().empty()) {
+            {
+                ans += "No graph found.\n";
+            }
+        } else {
+            clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
+            clientMST.setStrategy("prim");
+            isMST = true;
+            ans += "MST created using Prim's Algorithm.\n";
+            ans += clientMST.toString();
+        }
 
     } else if (command_of_user == "kruskal") {
-        clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
-        clientMST.setStrategy("kruskal");
-        isMST = true;
-        ans += "MST created using Kruskal's Algorithm.\n";
-        ans += clientMST.toString();
+        if (clientGraph.getEdges().empty()) {
+            {
+                ans += "No graph found.\n";
+            }
+        } else {
+            clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
+            clientMST.setStrategy("kruskal");
+            isMST = true;
+            ans += "MST created using Kruskal's Algorithm.\n";
+            ans += clientMST.toString();
+        }
 
     } else if (command_of_user == "Newedge") {
         int from, to, weight;
@@ -121,7 +132,7 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             clientGraph.addEdge(from, to, weight, clientGraph.getSize());
 
             ans += "Edge added from " + to_string(from) + " to " + to_string(to) + "\n";
-            ans+=clientGraph.toString();
+            ans += clientGraph.toString();
         } else {
             {
                 ans += "No graph found for adding edge.\n";
@@ -135,33 +146,27 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             clientGraph.removeEdge(from, to);
 
             ans += "Edge removed from " + to_string(from) + " to " + to_string(to) + "\n";
-            ans+=clientGraph.toString();
+            ans += clientGraph.toString();
 
         } else {
-            {
-                ans += "No graph found for removing edge.\n";
-            }
+            ans += "No graph found for removing edge.\n";
         }
     } else if (command_of_user == "Reduceedge") {
-        int id, newWeight;
-        iss >> id >> newWeight;
+        int from, to, newWeight;
+        iss >> from >> to >> newWeight;
         // cout << "Reduceedge n: " << n << endl;
         if (clientGraph.getSize() != 0) {
-            clientGraph.reduceEdges(id, newWeight);
-
-            ans += "Edge reduced with id " + to_string(id) + " to weight " + to_string(newWeight) + "\n";
-            ans+=clientGraph.toString();
+            clientGraph.reduceEdges(from, to, newWeight);
+            ans += "Edge reduced from " + to_string(from) + " to " + to_string(to) + " with weight " + to_string(newWeight) + "\n";
+            ans += clientGraph.toString();
 
         } else {
-            {
-                ans += "No graph found for reducing edge.\n";
-            }
+            ans += "No graph found for reducing edge.\n";
         }
     } else if (command_of_user == "Leader_Follower") {
         if (!isMST) {
-            {
-                ans += "No MST found.\n";
-            }
+            ans += "No MST found.\n";
+
         } else {
             // auto clientTask = std::make_tuple(&clientMST, &clientAns,fdclient);
             auto *clientTask = new std::tuple<MST_graph *, std::string *, int>(&clientMST, &clientAns, fdclient);
@@ -170,21 +175,19 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
             threadPool.addEventHandler(clientTask);
             // Add a small delay to allow Leader_Follower to process
             {
-                ans += "done";
+                ans += "done\n";
             }
         }
     } else if (command_of_user == "Pipeline") {
         if (!isMST) {
-            {
-                ans += "No MST found.\n";
-            }
+            ans += "No MST found.\n";
         } else {
             auto *clientTask = new std::tuple<MST_graph *, std::string *, int>(&clientMST, &clientAns, fdclient);
             // Pass the pointer to the tuple to the pipeline
             pipeline.addRequest(clientTask);
 
             {
-                ans += "done";
+                ans += "done\n";
             }
         }
     } else {
@@ -195,13 +198,13 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     return ans;
 }
 
-// get sockaddr, IPv4 or IPv6:
-void *get_in_addr(struct sockaddr *sa) {
-    if (sa->sa_family == AF_INET) {
-        return &(((struct sockaddr_in *)sa)->sin_addr);
-    }
-    return &(((struct sockaddr_in6 *)sa)->sin6_addr);
-}
+// // get sockaddr, IPv4 or IPv6:
+// void *get_in_addr(struct sockaddr *sa) {
+//     if (sa->sa_family == AF_INET) {
+//         return &(((struct sockaddr_in *)sa)->sin_addr);
+//     }
+//     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
+// }
 
 // vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, unsigned int seed) {
 //     srand(seed);
@@ -245,34 +248,25 @@ void *get_in_addr(struct sockaddr *sa) {
 // }
 int main() {
     mutex mtx;
-
-    fd_set master;    // master file descriptor list
-    fd_set read_fds;  // temp file descriptor list for select()
-    int fdmax;        // maximum file descriptor number
-
-    // Initialize the LeaderFollowerPool once
-    threadPool.start();   // Start the LeaderFollowerPool once during server initialization
-    pipeline.start(mtx);  // Start the pipeline once during server initialization
-
+    fd_set master;                          // master file descriptor list
+    fd_set read_fds;                        // temp file descriptor list for select()
+    int fdmax;                              // maximum file descriptor number
+    threadPool.start();                     // Start the LeaderFollowerPool once during server initialization
+    pipeline.start(mtx);                    // Start the pipeline once during server initialization
     int newfd;                              // newly accept()ed socket descriptor
     struct sockaddr_storage clientAddress;  // client address
     socklen_t addrlen;
-
     char buf[4096];  // buffer for client data (increased size)
     int nbytes;
-
     char remoteIP[INET6_ADDRSTRLEN];
     int yes = 1;  // for setsockopt() SO_REUSEADDR, below
     int i, rv;
-
     struct addrinfo hints, *ai, *p;
-
     FD_ZERO(&master);  // clear the master and temp sets
     FD_ZERO(&read_fds);
 
     // Set up shutdown signal handler
     signal(SIGINT, shutdown_handler);
-
     // get us a socket and bind it
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;

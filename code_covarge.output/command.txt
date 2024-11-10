@@ -1,4 +1,6 @@
 compile with -fprofile-arcs -ftest-coverage
 
 run 
-gcov -r  main cpp - make just the relevant fiels 
+ -r : make just the relevant fiels 
+ command:
+gcov -r  Graph.cpp MST_graph.cpp MST_stats.cpp main.cpp Pipeline.cpp LeaderFollowerPool.cpp union_find.cpp MST_strategy.cpp
