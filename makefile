@@ -39,5 +39,5 @@ gcov_coverage: main
 	gcov Graph.cpp MST_graph.cpp MST_stats.cpp main.cpp Pipeline.cpp LeaderFollowerPool.cpp union_find.cpp MST_strategy.cpp
 
 clean:
-	rm -f *.o main *.gcda *.gcno *.gcov coverage.info
+	rm -f *.o main *.gcda *.gcno
 	rm -rf coverage

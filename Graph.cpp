@@ -85,34 +85,28 @@ class Graph {
                 edges[i] = make_tuple(v, u, newWhight, id);
             }
         }
-
-
-
-         
-            
-      
         for (size_t i = 0; i < edges.size(); i++) {
             int u, v, w, id;
             tie(u, v, w, id) = edges[i];
-            cout << " edge : " << u << " v:  " << v << " w: " << w << " id:  " << id << endl;
+        //    cout << " edge : " << u << " v:  " << v << " w: " << w << " id:  " << id << endl;
         }
     }
     // print edge just one side to - from not from - to
     string toString() {
         string ans = "";
-        cout << "toString called" << endl;
+     //   cout << "toString called" << endl;
         for (int i = 0; i < edges.size(); i++) {
             int u, v, w, id;
             tie(u, v, w, id) = this->getEdge(i);
-            cout << "Processing edge " << i << ": " << u << " " << v << " " << w << " " << id << endl;
+          //  cout << "Processing edge " << i << ": " << u << " " << v << " " << w << " " << id << endl;
             if (id == -2) {
-                cout << "Skipping reverse edge " << i << endl;
+             //   cout << "Skipping reverse edge " << i << endl;
                 continue;
             }
             ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
-            cout << "Edge added to string: " << "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) << endl;
+           // cout << "Edge added to string: " << "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) << endl;
         }
-        cout << "toString completed" << endl;
+        //cout << "toString completed" << endl;
         return ans;
     }
 };

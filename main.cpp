@@ -66,6 +66,7 @@ vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of
 
 string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &clientMST, string &clientAns, int fdclient) {
     // Shared string to accumulate results
+
     string ans;
     string command_of_user;
     istringstream iss(input_user);
@@ -166,7 +167,6 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     } else if (command_of_user == "Leader_Follower") {
         if (!isMST) {
             ans += "No MST found.\n";
-
         } else {
             // auto clientTask = std::make_tuple(&clientMST, &clientAns,fdclient);
             auto *clientTask = new std::tuple<MST_graph *, std::string *, int>(&clientMST, &clientAns, fdclient);

@@ -32,10 +32,10 @@ void LeaderFollowerPool::mainFunction(void* task) {
     MST_stats mst_stats;
 
     auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
-    if (!taskTuple) {
-        cout << "Error: Invalid task tuple" << endl;
-        return;
-    }
+    // if (!taskTuple) {
+    //     cout << "Error: Invalid task tuple" << endl;
+    //     return;
+    // }
     MST_graph* clientMST = std::get<0>(*taskTuple);
     string* clientAns = std::get<1>(*taskTuple);
     int fdclient = std::get<2>(*taskTuple);
@@ -74,9 +74,10 @@ void LeaderFollowerPool::leaderRole() {
                 // Get the next task
                 task = std::move(eventQueue_.front());
                 eventQueue_.pop();
-            } else {
-                continue;  // Recheck if spurious wakeup
-            }
+             } 
+             //else {
+            //     continue;  // Recheck if spurious wakeup
+            // }
         }
 
         // Execute the task outside the lock

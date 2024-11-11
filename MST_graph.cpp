@@ -17,7 +17,6 @@ bool dfs(int current, int target, const vector<vector<tuple<int, int, int>>>& ad
             if (dfs(to, target, adj, visited, path_weight)) {
                 return true;  // Return true if target found
             }
-
             path_weight -= weight;  // Backtrack if the path does not lead to the target
         }
     }

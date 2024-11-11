@@ -17,20 +17,20 @@
         -:   16:    string strategy;
         -:   17:
         -:   18:   public:
-        4:   19:    MST_graph() {
-        4:   20:        numVertices = 0;
-        4:   21:    };  // Default constructor
+        1:   19:    MST_graph() {
+        1:   20:        numVertices = 0;
+        1:   21:    };  // Default constructor
         -:   22:    MST_graph(int n) : numVertices(n) {
         -:   23:        alldistances.resize(n, vector<int>(n, 0));
         -:   24:    }
         -:   25:    MST_graph(vector<tuple<int, int, int, int>> edges, string strategy);
-       7*:   26:    vector<tuple<int, int, int, int>> getEdges() const {
-       7*:   27:        return edges;
+       4*:   26:    vector<tuple<int, int, int, int>> getEdges() const {
+       4*:   27:        return edges;
         -:   28:    }
 ------------------
 _ZNK9MST_graph8getEdgesEv:
-        7:   26:    vector<tuple<int, int, int, int>> getEdges() const {
-        7:   27:        return edges;
+        4:   26:    vector<tuple<int, int, int, int>> getEdges() const {
+        4:   27:        return edges;
         -:   28:    }
 ------------------
 _ZNK9MST_graph8getEdgesEv:
@@ -38,15 +38,15 @@ _ZNK9MST_graph8getEdgesEv:
     #####:   27:        return edges;
         -:   28:    }
 ------------------
-       12:   29:    vector<vector<int>> getAllDistances() const {
-       12:   30:        return alldistances;
+        6:   29:    vector<vector<int>> getAllDistances() const {
+        6:   30:        return alldistances;
         -:   31:    }
         -:   32:    string toString() const;
         -:   33:    string getStrategy() const {
         -:   34:        return strategy;
         -:   35:    }
-        3:   36:    void setStrategy(string s) {
-        3:   37:        strategy = s;
-        3:   38:    }
+        2:   36:    void setStrategy(string s) {
+        2:   37:        strategy = s;
+        2:   38:    }
         -:   39:};
         -:   40:#endif  // MST_GRAPH_HPP

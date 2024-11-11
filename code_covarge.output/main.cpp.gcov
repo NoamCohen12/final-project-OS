@@ -1,0 +1,384 @@
+        -:    0:Source:main.cpp
+        -:    1:#include <arpa/inet.h>   // Include for inet_ntop
+        -:    2:#include <netdb.h>       // Include for addrinfo
+        -:    3:#include <netinet/in.h>  // Include for sockaddr_in and sockaddr_in6
+        -:    4:#include <sys/socket.h>  // Include for sockaddr
+        -:    5:#include <unistd.h>      // Include for close
+        -:    6:
+        -:    7:#include <algorithm>
+        -:    8:#include <cassert>
+        -:    9:#include <csignal>  // For signal handling (e.g., SIGINT)
+        -:   10:#include <cstring>  // Include for memset
+        -:   11:#include <ctime>
+        -:   12:#include <future>
+        -:   13:#include <iostream>
+        -:   14:#include <memory>
+        -:   15:#include <mutex>
+        -:   16:#include <numeric>
+        -:   17:#include <random>
+        -:   18:#include <set>
+        -:   19:#include <sstream>  // Include the necessary header for istringstream
+        -:   20:#include <string>
+        -:   21:#include <tuple>
+        -:   22:#include <unordered_map>
+        -:   23:#include <vector>
+        -:   24:
+        -:   25:#include "Graph.cpp"
+        -:   26:#include "GraphGUI.cpp"  // Include the GraphGUI header
+        -:   27:#include "LeaderFollowerPool.hpp"
+        -:   28:#include "MST_graph.hpp"
+        -:   29:#include "MST_stats.hpp"
+        -:   30:#include "MST_strategy.hpp"
+        -:   31:#include "Pipeline.cpp"
+        -:   32:#include "union_find.hpp"
+        -:   33:#define PORT "9034"    // port we're listening on
+        -:   34:#define NUM_THREADS 4  // Number of threads in the thread pool
+        -:   35:using namespace std;
+        -:   36:unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client gets its own graph
+        -:   37:std::mutex lfMutex;                                               // Declare as static to ensure it's shared across function calls
+        -:   38:LeaderFollowerPool threadPool(NUM_THREADS, lfMutex);              // Create a thread pool object
+        -:   39:Pipeline pipeline;
+        -:   40:MST_strategy mst;
+        -:   41:atomic<bool> isMST{false};
+        -:   42:
+        -:   43:// Declare the LeaderFollowerPool instance here
+        -:   44:int listener;  // Global listener for shutdown handling
+        -:   45:
+        -:   46:// Signal handler for graceful shutdown
+        1:   47:void shutdown_handler(int signum) {
+        -:   48:    // cout << "\nShutting down the server..." << endl;
+        1:   49:    close(listener);  // Close the listener socket
+        1:   50:    exit(0);          // Exit the program
+        -:   51:}
+        -:   52:
+        -:   53:// assume the input is in the form of "Newgraph n m u v w"
+        -:   54:// and the input of edge u v with weight w but dont add the reverse edge with weight w'
+        1:   55:vector<tuple<int, int, int, int>> Newgraph(istringstream &iss, int n, int num_of_Edge) {
+        1:   56:    vector<tuple<int, int, int, int>> graph;
+        -:   57:    // cout << "Newgraph" << endl;
+        -:   58:    int u, v, w;  // vertex and weight
+        4:   59:    for (int i = 0; i < num_of_Edge; ++i) {
+        3:   60:        iss >> u >> v >> w;
+        3:   61:        graph.emplace_back(u, v, w, i);
+        3:   62:        graph.emplace_back(v, u, w, -2);  // Add the reverse edge for undirected graph
+        -:   63:    }
+        2:   64:    return graph;
+    =====:   65:}
+        -:   66:
+       13:   67:string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &clientMST, string &clientAns, int fdclient) {
+        -:   68:    // Shared string to accumulate results
+        -:   69:
+       13:   70:    string ans;
+       13:   71:    string command_of_user;
+       13:   72:    istringstream iss(input_user);
+       13:   73:    iss >> command_of_user;
+        -:   74:
+        -:   75:    int n, m;
+       13:   76:    std::lock_guard<std::mutex> lock(lfMutex);
+        -:   77:
+       13:   78:    if (command_of_user.empty()) {
+        -:   79:        {
+        -:   80:            // std::lock_guard<std::mutex> lock(lfMutex); // Lock before modifying ans
+        1:   81:            ans += "No command received.\n";
+        -:   82:        }
+       12:   83:    } else if (command_of_user == "Newgraph") {
+        -:   84:        // Get the number of vertices and edges
+        2:   85:        iss >> n >> m;
+        2:   86:        if (n <= 0 || m < 0) {
+        -:   87:            {
+        1:   88:                ans += "Invalid graph parameters. \n";
+        -:   89:            }
+        -:   90:        } else {
+        1:   91:            auto newEdges = Newgraph(iss, n, m);  // Store the result in a local variable
+        1:   92:            clientGraph.setEdges(newEdges);       // Pass the local variable to setEdges
+        1:   93:            clientGraph.setnumVertices(n);
+        -:   94:
+        -:   95:            {
+        -:   96:                // std::lock_guard<std::mutex> lock(lfMutex); // Lock before modifying ans
+        1:   97:                ans += "Graph created:\n";
+        1:   98:                ans += clientGraph.toString();
+        -:   99:            }
+        1:  100:        }
+        -:  101:
+       10:  102:    } else if (command_of_user == "prim") {
+        2:  103:        if (clientGraph.getEdges().empty()) {
+        -:  104:            {
+        1:  105:                ans += "No graph found.\n";
+        -:  106:            }
+        -:  107:        } else {
+        1:  108:            clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
+        1:  109:            clientMST.setStrategy("prim");
+        1:  110:            isMST = true;
+        1:  111:            ans += "MST created using Prim's Algorithm.\n";
+        1:  112:            ans += clientMST.toString();
+        -:  113:        }
+        -:  114:
+        8:  115:    } else if (command_of_user == "kruskal") {
+        2:  116:        if (clientGraph.getEdges().empty()) {
+        -:  117:            {
+        1:  118:                ans += "No graph found.\n";
+        -:  119:            }
+        -:  120:        } else {
+        1:  121:            clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
+        1:  122:            clientMST.setStrategy("kruskal");
+        1:  123:            isMST = true;
+        1:  124:            ans += "MST created using Kruskal's Algorithm.\n";
+        1:  125:            ans += clientMST.toString();
+        -:  126:        }
+        -:  127:
+        6:  128:    } else if (command_of_user == "Newedge") {
+        -:  129:        int from, to, weight;
+        1:  130:        iss >> from >> to >> weight;
+        -:  131:        // cout << "Newedge n: " << n << endl;
+        1:  132:        if (clientGraph.getSize() != 0) {
+        1:  133:            clientGraph.addEdge(from, to, weight, clientGraph.getSize());
+        -:  134:
+        1:  135:            ans += "Edge added from " + to_string(from) + " to " + to_string(to) + "\n";
+        1:  136:            ans += clientGraph.toString();
+        -:  137:        } else {
+        -:  138:            {
+    #####:  139:                ans += "No graph found for adding edge.\n";
+        -:  140:            }
+        -:  141:        }
+        5:  142:    } else if (command_of_user == "Removeedge") {
+        -:  143:        int from, to;
+        1:  144:        iss >> from >> to;
+        -:  145:        // cout << "Removeedge n: " << n << endl;
+        1:  146:        if (clientGraph.getSize() != 0) {
+        1:  147:            clientGraph.removeEdge(from, to);
+        -:  148:
+        1:  149:            ans += "Edge removed from " + to_string(from) + " to " + to_string(to) + "\n";
+        1:  150:            ans += clientGraph.toString();
+        -:  151:
+        -:  152:        } else {
+    #####:  153:            ans += "No graph found for removing edge.\n";
+        -:  154:        }
+        4:  155:    } else if (command_of_user == "Reduceedge") {
+        -:  156:        int from, to, newWeight;
+        1:  157:        iss >> from >> to >> newWeight;
+        -:  158:        // cout << "Reduceedge n: " << n << endl;
+        1:  159:        if (clientGraph.getSize() != 0) {
+        1:  160:            clientGraph.reduceEdges(from, to, newWeight);
+        1:  161:            ans += "Edge reduced from " + to_string(from) + " to " + to_string(to) + " with weight " + to_string(newWeight) + "\n";
+        1:  162:            ans += clientGraph.toString();
+        -:  163:
+        -:  164:        } else {
+    #####:  165:            ans += "No graph found for reducing edge.\n";
+        -:  166:        }
+        3:  167:    } else if (command_of_user == "Leader_Follower") {
+        1:  168:        if (!isMST) {
+    #####:  169:            ans += "No MST found.\n";
+        -:  170:        } else {
+        -:  171:            // auto clientTask = std::make_tuple(&clientMST, &clientAns,fdclient);
+        1:  172:            auto *clientTask = new std::tuple<MST_graph *, std::string *, int>(&clientMST, &clientAns, fdclient);
+        -:  173:
+        -:  174:            // Pass the pointer to the tuple to the threadPool
+        1:  175:            threadPool.addEventHandler(clientTask);
+        -:  176:            // Add a small delay to allow Leader_Follower to process
+        -:  177:            {
+        1:  178:                ans += "done\n";
+        -:  179:            }
+        -:  180:        }
+        2:  181:    } else if (command_of_user == "Pipeline") {
+        1:  182:        if (!isMST) {
+    #####:  183:            ans += "No MST found.\n";
+        -:  184:        } else {
+        1:  185:            auto *clientTask = new std::tuple<MST_graph *, std::string *, int>(&clientMST, &clientAns, fdclient);
+        -:  186:            // Pass the pointer to the tuple to the pipeline
+        1:  187:            pipeline.addRequest(clientTask);
+        -:  188:
+        -:  189:            {
+        1:  190:                ans += "done\n";
+        -:  191:            }
+        -:  192:        }
+        -:  193:    } else {
+        -:  194:        {
+        1:  195:            ans += "Unknown command.\n";
+        -:  196:        }
+        -:  197:    }
+       26:  198:    return ans;
+       13:  199:}
+        -:  200:
+        -:  201:// // get sockaddr, IPv4 or IPv6:
+        -:  202:// void *get_in_addr(struct sockaddr *sa) {
+        -:  203://     if (sa->sa_family == AF_INET) {
+        -:  204://         return &(((struct sockaddr_in *)sa)->sin_addr);
+        -:  205://     }
+        -:  206://     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
+        -:  207:// }
+        -:  208:
+        -:  209:// vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, unsigned int seed) {
+        -:  210://     srand(seed);
+        -:  211://     assert(m >= (n - 1));
+        -:  212://     assert(1ll * m <= (1ll * n * (n - 1)) / 2);
+        -:  213:
+        -:  214://     vector<int> W(m, 0);
+        -:  215://     iota(W.begin(), W.end(), 0);
+        -:  216:
+        -:  217://     random_device rd;
+        -:  218://     mt19937 g(seed);
+        -:  219://     shuffle(W.begin(), W.end(), g);
+        -:  220:
+        -:  221://     vector<tuple<int, int, int, int>> random_graph;
+        -:  222://     int nxt = 0;
+        -:  223://     set<pair<int, int>> edges;
+        -:  224:
+        -:  225://     for (int i = 0; i < n - 1; ++i) {
+        -:  226://         random_graph.emplace_back(i, i + 1, W[nxt], nxt);
+        -:  227://         ++nxt;
+        -:  228://         edges.emplace(i, i + 1);
+        -:  229://     }
+        -:  230:
+        -:  231://     int remaining_edges = m - (n - 1);
+        -:  232://     for (int e = 0; e < remaining_edges; ++e) {
+        -:  233://         int a, b;
+        -:  234://         a = (rand() % n);
+        -:  235://         b = (rand() % n);
+        -:  236://         if (a > b) swap(a, b);
+        -:  237://         while (b == a || edges.find(make_pair(a, b)) != edges.end()) {
+        -:  238://             a = (rand() % n);
+        -:  239://             b = (rand() % n);
+        -:  240://             if (a > b) swap(a, b);
+        -:  241://         }
+        -:  242://         random_graph.emplace_back(a, b, W[nxt], nxt);
+        -:  243://         ++nxt;
+        -:  244://         edges.emplace(a, b);
+        -:  245://     }
+        -:  246://     assert(static_cast<int>(random_graph.size()) == m);
+        -:  247://     return random_graph;
+        -:  248:// }
+        1:  249:int main() {
+        1:  250:    mutex mtx;
+        -:  251:    fd_set master;                          // master file descriptor list
+        -:  252:    fd_set read_fds;                        // temp file descriptor list for select()
+        -:  253:    int fdmax;                              // maximum file descriptor number
+        1:  254:    threadPool.start();                     // Start the LeaderFollowerPool once during server initialization
+        1:  255:    pipeline.start(mtx);                    // Start the pipeline once during server initialization
+        -:  256:    int newfd;                              // newly accept()ed socket descriptor
+        -:  257:    struct sockaddr_storage clientAddress;  // client address
+        -:  258:    socklen_t addrlen;
+        -:  259:    char buf[4096];  // buffer for client data (increased size)
+        -:  260:    int nbytes;
+        -:  261:    char remoteIP[INET6_ADDRSTRLEN];
+        1:  262:    int yes = 1;  // for setsockopt() SO_REUSEADDR, below
+        -:  263:    int i, rv;
+        -:  264:    struct addrinfo hints, *ai, *p;
+       17:  265:    FD_ZERO(&master);  // clear the master and temp sets
+       17:  266:    FD_ZERO(&read_fds);
+        -:  267:
+        -:  268:    // Set up shutdown signal handler
+        1:  269:    signal(SIGINT, shutdown_handler);
+        -:  270:    // get us a socket and bind it
+        1:  271:    memset(&hints, 0, sizeof hints);
+        1:  272:    hints.ai_family = AF_UNSPEC;
+        1:  273:    hints.ai_socktype = SOCK_STREAM;
+        1:  274:    hints.ai_flags = AI_PASSIVE;
+        1:  275:    if ((rv = getaddrinfo(NULL, PORT, &hints, &ai)) != 0) {
+    #####:  276:        cerr << "selectserver: " << gai_strerror(rv) << endl;
+    #####:  277:        exit(1);
+        -:  278:    }
+        -:  279:
+       1*:  280:    for (p = ai; p != NULL; p = p->ai_next) {
+        1:  281:        listener = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
+       1*:  282:        if (listener < 0) {
+    #####:  283:            continue;
+        -:  284:        }
+        -:  285:
+        -:  286:        // lose the pesky "address already in use" error message
+        1:  287:        setsockopt(listener, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
+        -:  288:
+       1*:  289:        if (bind(listener, p->ai_addr, p->ai_addrlen) < 0) {
+    #####:  290:            close(listener);
+    #####:  291:            continue;
+        -:  292:        }
+        1:  293:        break;
+        -:  294:    }
+        -:  295:
+        1:  296:    if (p == NULL) {
+    #####:  297:        cerr << "selectserver: failed to bind" << endl;
+    #####:  298:        exit(2);
+        -:  299:    }
+        -:  300:
+        1:  301:    freeaddrinfo(ai);  // all done with this
+        -:  302:
+        -:  303:    // listen
+        1:  304:    if (listen(listener, 10) == -1) {
+    #####:  305:        perror("listen");
+    #####:  306:        exit(3);
+        -:  307:    }
+        -:  308:
+        -:  309:    // add the listener to the master set
+        1:  310:    FD_SET(listener, &master);
+        -:  311:
+        -:  312:    // keep track of the biggest file descriptor
+        1:  313:    fdmax = listener;  // so far, it's this one
+        -:  314:
+        -:  315:    // cout << "Server is listening on port " << PORT << endl;
+        -:  316:
+        -:  317:    // main loop
+        -:  318:    for (;;) {
+       16:  319:        read_fds = master;  // copy it
+       16:  320:        if (select(fdmax + 1, &read_fds, NULL, NULL, NULL) == -1) {
+    #####:  321:            perror("select");
+    #####:  322:            exit(4);
+        -:  323:        }
+        -:  324:
+        -:  325:        // run through the existing connections looking for data to read
+       90:  326:        for (i = 0; i <= fdmax; i++) {
+       75:  327:            if (FD_ISSET(i, &read_fds)) {  // we got one!!
+       15:  328:                if (i == listener) {
+        -:  329:                    // handle new connections
+        1:  330:                    addrlen = sizeof clientAddress;
+        1:  331:                    newfd = accept(listener, (struct sockaddr *)&clientAddress, &addrlen);
+        -:  332:
+        1:  333:                    if (newfd == -1) {
+    #####:  334:                        perror("accept");
+        -:  335:                    } else {
+        1:  336:                        FD_SET(newfd, &master);  // add to master set
+        1:  337:                        if (newfd > fdmax) {     // keep track of the max
+        1:  338:                            fdmax = newfd;
+        -:  339:                        }
+        -:  340:                        // cout << "selectserver: new connection from "
+        -:  341:                        //      << inet_ntop(clientAddress.ss_family,
+        -:  342:                        //                   get_in_addr((struct sockaddr *)&clientAddress),
+        -:  343:                        //                   remoteIP, INET6_ADDRSTRLEN)
+        -:  344:                        //      << " on socket " << newfd << endl;
+        -:  345:
+        -:  346:                        // Create a new graph for this client
+        1:  347:                        lock_guard<mutex> lock(mtx);
+        1:  348:                        std::get<0>(map_clients[newfd]) = Graph();  // Create an empty graph for the new client
+        1:  349:                    }
+        -:  350:                } else {
+        -:  351:                    // handle data from a client
+       14:  352:                    if ((nbytes = recv(i, buf, sizeof buf, 0)) <= 0) {
+        -:  353:                        // got error or connection closed by client
+        1:  354:                        if (nbytes == 0) {
+        -:  355:                            // connection closed
+        -:  356:                            // cout << "selectserver: socket " << i << " hung up" << endl;
+        -:  357:                        } else {
+    #####:  358:                            perror("recv");
+        -:  359:                        }
+        1:  360:                        close(i);            // bye!
+        1:  361:                        FD_CLR(i, &master);  // remove from master set
+        1:  362:                        lock_guard<mutex> lock(mtx);
+        1:  363:                        map_clients.erase(i);  // Remove the client's graph
+        1:  364:                    } else {
+        -:  365:                        // we got some data from a client
+       13:  366:                        buf[nbytes] = '\0';  // null-terminate the buffer
+        -:  367:
+        -:  368:                        // Process the command for this client
+        -:  369:
+       13:  370:                        lock_guard<mutex> lock(mtx);
+       26:  371:                        string response = graph_user_commands(string(buf), get<0>(map_clients[i]), get<1>(map_clients[i]), get<2>(map_clients[i]), i);
+        -:  372:
+        -:  373:                        // Send the response back to the client
+       13:  374:                        if (send(i, response.c_str(), response.length(), 0) == -1) {
+    #####:  375:                            perror("send");
+        -:  376:                        }
+       13:  377:                    }
+        -:  378:                }
+        -:  379:            }
+        -:  380:        }
+       15:  381:    }
+        -:  382:    return 0;
+        -:  383:}

@@ -4,3 +4,47 @@ run
  -r : make just the relevant fiels 
  command:
 gcov -r  Graph.cpp MST_graph.cpp MST_stats.cpp main.cpp Pipeline.cpp LeaderFollowerPool.cpp union_find.cpp MST_strategy.cpp
+
+
+output:
+File 'Graph.cpp'
+Lines executed:98.00% of 50
+Creating 'Graph.cpp.gcov'
+
+File 'MST_graph.cpp'
+Lines executed:95.12% of 41
+Creating 'MST_graph.cpp.gcov'
+
+File 'MST_graph.hpp'
+Lines executed:100.00% of 10
+Creating 'MST_graph.hpp.gcov'
+
+File 'MST_stats.cpp'
+Lines executed:100.00% of 37
+Creating 'MST_stats.cpp.gcov'
+
+File 'main.cpp'
+Lines executed:86.30% of 146
+Creating 'main.cpp.gcov'
+
+File 'Pipeline.cpp'
+Lines executed:97.94% of 97
+Creating 'Pipeline.cpp.gcov'
+
+File 'LeaderFollowerPool.cpp'
+Lines executed:98.46% of 65
+Creating 'LeaderFollowerPool.cpp.gcov'
+
+File 'union_find.cpp'
+Lines executed:100.00% of 19
+Creating 'union_find.cpp.gcov'
+
+File 'MST_strategy.cpp'
+Lines executed:100.00% of 49
+Creating 'MST_strategy.cpp.gcov'
+
+File 'union_find.hpp'
+No executable lines
+Removing 'union_find.hpp.gcov'
+
+Lines executed:94.94% of 514

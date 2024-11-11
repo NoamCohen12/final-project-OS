@@ -45,21 +45,21 @@ double MST_stats::getAverageDistance(const MST_graph& mst) {
     int sum = 0;
     int count = 0;
 
-    cout << "Calculating average distance" << endl;
-    cout << "Number of vertices: " << alldistances.size() << endl;
+    // cout << "Calculating average distance" << endl;
+    // cout << "Number of vertices: " << alldistances.size() << endl;
 
     for (int i = 0; i < alldistances.size(); i++) {
         for (int j = i + 1; j < alldistances[i].size(); j++) {
             sum += alldistances[i][j];
             count++;
-            cout << "Adding distance between vertex " << i << " and vertex " << j << ": " << alldistances[i][j] << endl;
+      //      cout << "Adding distance between vertex " << i << " and vertex " << j << ": " << alldistances[i][j] << endl;
         }
     }
 
     double averageDistance = (double)sum / count;
-    cout << "Total sum of distances: " << sum << endl;
-    cout << "Total number of distances: " << count << endl;
-    cout << "Average distance: " << averageDistance << endl;
+  //  cout << "Total sum of distances: " << sum << endl;
+    // cout << "Total number of distances: " << count << endl;
+    // cout << "Average distance: " << averageDistance << endl;
 
     return averageDistance;
 }
