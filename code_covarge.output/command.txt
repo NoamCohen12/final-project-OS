@@ -24,7 +24,7 @@ Lines executed:100.00% of 37
 Creating 'MST_stats.cpp.gcov'
 
 File 'main.cpp'
-Lines executed:86.30% of 146
+Lines executed:89.73% of 146
 Creating 'main.cpp.gcov'
 
 File 'Pipeline.cpp'
@@ -32,7 +32,7 @@ Lines executed:97.94% of 97
 Creating 'Pipeline.cpp.gcov'
 
 File 'LeaderFollowerPool.cpp'
-Lines executed:98.46% of 65
+Lines executed:97.01% of 67
 Creating 'LeaderFollowerPool.cpp.gcov'
 
 File 'union_find.cpp'
@@ -47,4 +47,4 @@ File 'union_find.hpp'
 No executable lines
 Removing 'union_find.hpp.gcov'
 
-Lines executed:94.94% of 514
+Lines executed:95.74% of 516

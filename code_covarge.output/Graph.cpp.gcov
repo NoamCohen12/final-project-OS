@@ -15,100 +15,100 @@
         -:   14:    int numVertices;
         -:   15:
         -:   16:   public:
-        2:   17:    Graph() {};  // Default constructor
+        6:   17:    Graph() {};  // Default constructor
         -:   18:    Graph(int n) : numVertices(n) {}
         -:   19:    // return the next id
-        4:   20:    int getSize() {
-        4:   21:        return edges.size();
+       19:   20:    int getSize() {
+       19:   21:        return edges.size();
         -:   22:    }
-        2:   23:    int getnumVertices() {
-        2:   24:        return numVertices;
+        6:   23:    int getnumVertices() {
+        6:   24:        return numVertices;
         -:   25:    }
         -:   26:
-        1:   27:    void setEdges(vector<std::tuple<int, int, int, int>>& e) {
-        1:   28:        edges = e;
-        1:   29:    }
-        1:   30:    void setnumVertices(int n) {
-        1:   31:        numVertices = n;
-        1:   32:    }
+        3:   27:    void setEdges(vector<std::tuple<int, int, int, int>>& e) {
+        3:   28:        edges = e;
+        3:   29:    }
+        3:   30:    void setnumVertices(int n) {
+        3:   31:        numVertices = n;
+        3:   32:    }
         -:   33:    // return edges
-        6:   34:    vector<tuple<int, int, int, int>> getEdges() {
-        6:   35:        return edges;
+       18:   34:    vector<tuple<int, int, int, int>> getEdges() {
+       18:   35:        return edges;
         -:   36:    }
-       22:   37:    tuple<int, int, int, int> getEdge(int i) {
+       76:   37:    tuple<int, int, int, int> getEdge(int i) {
         -:   38:        // cout << "getEdge" << endl;
         -:   39:        // print all parmeters
         -:   40:        int u, v, w, id;
-       22:   41:        tie(u, v, w, id) = edges[i];
+       76:   41:        tie(u, v, w, id) = edges[i];
         -:   42:        // cout << "Edge " << i << ": " << u << " " << v << " " << w << endl;
-       22:   43:        return edges[i];
+       76:   43:        return edges[i];
         -:   44:    }
         -:   45:    // get the number of vertices
         -:   46:    int getNumVertices() {
         -:   47:        return numVertices;
         -:   48:    }
         -:   49:
-        1:   50:    void addEdge(int from, int to, int weight, int id) {
-        1:   51:        edges.emplace_back(from, to, weight, id - 2);
-        1:   52:        edges.emplace_back(to, from, weight, -2);
-        1:   53:    }
+        4:   50:    void addEdge(int from, int to, int weight, int id) {
+        4:   51:        edges.emplace_back(from, to, weight, id - 2);
+        4:   52:        edges.emplace_back(to, from, weight, -2);
+        4:   53:    }
         -:   54:
         -:   55:    // remove the edgefrom to and to from
         -:   56:    // erase the edge from to
-        1:   57:    void removeEdge(int from, int to) {
-        5:   58:        for (int i = 0; i < edges.size(); i++) {
+        3:   57:    void removeEdge(int from, int to) {
+       15:   58:        for (int i = 0; i < edges.size(); i++) {
         -:   59:            int u, v, w, id;
-        5:   60:            tie(u, v, w, id) = edges[i];
-        5:   61:            if (u == from && v == to) {
-        1:   62:                edges.erase(edges.begin() + i);
-        1:   63:                break;
+       15:   60:            tie(u, v, w, id) = edges[i];
+       15:   61:            if (u == from && v == to) {
+        3:   62:                edges.erase(edges.begin() + i);
+        3:   63:                break;
         -:   64:            }
         -:   65:        }
-        5:   66:        for (int i = 0; i < edges.size(); i++) {
+       15:   66:        for (int i = 0; i < edges.size(); i++) {
         -:   67:            int u, v, w, id;
-        5:   68:            tie(u, v, w, id) = edges[i];
-        5:   69:            if (u == to && v == from) {
-        1:   70:                edges.erase(edges.begin() + i);
-        1:   71:                break;
+       15:   68:            tie(u, v, w, id) = edges[i];
+       15:   69:            if (u == to && v == from) {
+        3:   70:                edges.erase(edges.begin() + i);
+        3:   71:                break;
         -:   72:            }
         -:   73:        }
         -:   74:
         -:   75:        
-        1:   76:    }
+        3:   76:    }
         -:   77:
-        1:   78:    void reduceEdges(int from,int to, int newWhight) {
+        3:   78:    void reduceEdges(int from,int to, int newWhight) {
         -:   79:        //change weight from to and to from 
-        7:   80:        for (int i = 0; i < edges.size(); i++) {
+       23:   80:        for (int i = 0; i < edges.size(); i++) {
         -:   81:            int u, v, w, id;
-        6:   82:            tie(u, v, w, id) = edges[i];
-        6:   83:            if (u == from && v == to || u == to && v == from) {
-        2:   84:                edges[i] = make_tuple(u, v, newWhight, id);
-        2:   85:                edges[i] = make_tuple(v, u, newWhight, id);
+       20:   82:            tie(u, v, w, id) = edges[i];
+       20:   83:            if (u == from && v == to || u == to && v == from) {
+        6:   84:                edges[i] = make_tuple(u, v, newWhight, id);
+        6:   85:                edges[i] = make_tuple(v, u, newWhight, id);
         -:   86:            }
         -:   87:        }
-        7:   88:        for (size_t i = 0; i < edges.size(); i++) {
+       23:   88:        for (size_t i = 0; i < edges.size(); i++) {
         -:   89:            int u, v, w, id;
-        6:   90:            tie(u, v, w, id) = edges[i];
+       20:   90:            tie(u, v, w, id) = edges[i];
         -:   91:        //    cout << " edge : " << u << " v:  " << v << " w: " << w << " id:  " << id << endl;
         -:   92:        }
-        1:   93:    }
+        3:   93:    }
         -:   94:    // print edge just one side to - from not from - to
-        4:   95:    string toString() {
-        4:   96:        string ans = "";
+       13:   95:    string toString() {
+       13:   96:        string ans = "";
         -:   97:     //   cout << "toString called" << endl;
-       26:   98:        for (int i = 0; i < edges.size(); i++) {
+       89:   98:        for (int i = 0; i < edges.size(); i++) {
         -:   99:            int u, v, w, id;
-       22:  100:            tie(u, v, w, id) = this->getEdge(i);
+       76:  100:            tie(u, v, w, id) = this->getEdge(i);
         -:  101:          //  cout << "Processing edge " << i << ": " << u << " " << v << " " << w << " " << id << endl;
-       22:  102:            if (id == -2) {
+       76:  102:            if (id == -2) {
         -:  103:             //   cout << "Skipping reverse edge " << i << endl;
-       11:  104:                continue;
+       38:  104:                continue;
         -:  105:            }
-       11:  106:            ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
+       38:  106:            ans += "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) + "\n";
         -:  107:           // cout << "Edge added to string: " << "Edge " + to_string(id) + ": " + to_string(u) + " " + to_string(v) + " " + to_string(w) << endl;
         -:  108:        }
         -:  109:        //cout << "toString completed" << endl;
-        4:  110:        return ans;
+       13:  110:        return ans;
     =====:  111:    }
         -:  112:};
         -:  113:#endif  // GRAPH_HPP

@@ -11,7 +11,7 @@ void LeaderFollowerPool::start() {
 }
 // Update constructor to accept shared answer stream and mutex
 LeaderFollowerPool::LeaderFollowerPool(int numThreads, std::mutex& ansMutex)
-    : numThreads_(numThreads), stopFlag_(false), ansMutex(ansMutex) {
+    : numThreads_(numThreads), stopFlag_(false), ansMutex(ansMutex), leader_exists(false) {
     for (int i = 0; i < numThreads_; ++i) {
         workers_.emplace_back(&LeaderFollowerPool::leaderRole, this);
     }
@@ -61,36 +61,36 @@ void LeaderFollowerPool::leaderRole() {
             std::unique_lock<std::mutex> lock(mutexqueue);
             cv_.wait(lock, [this] {
                 std::lock_guard<std::mutex> stopLock(mutexstop);  // Lock mutexstop for stopFlag_ check
-                return !eventQueue_.empty() || stopFlag_;
+                return (!eventQueue_.empty() && !leader_exists) || stopFlag_;
             });
+            
+           leader_exists = true;
 
-            {
-                if (stopFlag_ && eventQueue_.empty()) {
-                    return;  // Shutdown check
-                }
+            if (stopFlag_ && eventQueue_.empty()) {
+                return;  // Shutdown check
             }
 
             if (!eventQueue_.empty()) {
                 // Get the next task
                 task = std::move(eventQueue_.front());
                 eventQueue_.pop();
-             } 
-             //else {
-            //     continue;  // Recheck if spurious wakeup
-            // }
+                leader_exists = false;
+                // Notify other threads that a new leader can be elected
+                followerRole();
+            } else {
+                continue;  // Recheck if spurious wakeup
+            }
         }
 
         // Execute the task outside the lock
         if (task) {
             mainFunction(task);
-            // Notify other threads that a new leader can be elected
-            followerRole();
         }
     }
 }
 
 void LeaderFollowerPool::followerRole() {
-    lock_guard<mutex> lock(mutexqueue);
+     //lock_guard<mutex> lock(mutexqueue);
     cv_.notify_one();  // Wake up next thread to be leader
 }
 

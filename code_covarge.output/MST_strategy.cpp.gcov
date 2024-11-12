@@ -6,86 +6,86 @@
         -:    5:
         -:    6:struct Edge {
         -:    7:    int w = INF, to = -1, id;
-        5:    8:    bool operator<(Edge const& other) const {
-        5:    9:        return make_pair(w, to) < make_pair(other.w, other.to);
+       15:    8:    bool operator<(Edge const& other) const {
+       15:    9:        return make_pair(w, to) < make_pair(other.w, other.to);
         -:   10:    }
-        3:   11:    Edge() {
-        3:   12:        w = INF;
-        3:   13:        to = -1;
-        3:   14:    }
-       22:   15:    Edge(int _w, int _to, int _id) : w(_w), to(_to), id(_id) {}
+        9:   11:    Edge() {
+        9:   12:        w = INF;
+        9:   13:        to = -1;
+        9:   14:    }
+       70:   15:    Edge(int _w, int _to, int _id) : w(_w), to(_to), id(_id) {}
         -:   16:};
         -:   17:
-        1:   18:MST_graph MST_strategy::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
-        1:   19:    UnionFind graph(n);
-        1:   20:    vector<tuple<int, int, int, int>> edges;
-        1:   21:    vector<tuple<int, int, int, int>> spanning_tree;
+        3:   18:MST_graph MST_strategy::kruskal(const vector<tuple<int, int, int, int>>& graph_edges, int n) {
+        3:   19:    UnionFind graph(n);
+        3:   20:    vector<tuple<int, int, int, int>> edges;
+        3:   21:    vector<tuple<int, int, int, int>> spanning_tree;
         -:   22:
-        1:   23:    edges = graph_edges;
+        3:   23:    edges = graph_edges;
         -:   24:
-        1:   25:    sort(edges.begin(), edges.end(), [&](const tuple<int, int, int, int>& a, const tuple<int, int, int, int>& b) {
-       15:   26:        return get<2>(a) < get<2>(b);
+        3:   25:    sort(edges.begin(), edges.end(), [&](const tuple<int, int, int, int>& a, const tuple<int, int, int, int>& b) {
+       53:   26:        return get<2>(a) < get<2>(b);
         -:   27:    });
         -:   28:
-        7:   29:    for (const auto& edge : edges) {
+       23:   29:    for (const auto& edge : edges) {
         -:   30:        int from, to, cost, id;
-        6:   31:        tie(from, to, cost, id) = edge;
-        6:   32:        if (graph.unite(from, to)) {
-        2:   33:            spanning_tree.emplace_back(from, to, cost, id);
+       20:   31:        tie(from, to, cost, id) = edge;
+       20:   32:        if (graph.unite(from, to)) {
+        6:   33:            spanning_tree.emplace_back(from, to, cost, id);
         -:   34:        }
         -:   35:    }
         -:   36:    // cout << "Kruskal's Algorithm\n";
-        2:   37:    return MST_graph(spanning_tree,"kruskal");
-        1:   38:}
+        6:   37:    return MST_graph(spanning_tree,"kruskal");
+        3:   38:}
         -:   39:
-        1:   40:vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) {
-        1:   41:    vector<tuple<int, int, int, int>> spanning_tree;
+        3:   40:vector<tuple<int, int, int, int>> _prim(const vector<vector<Edge>>& adj, int n) {
+        3:   41:    vector<tuple<int, int, int, int>> spanning_tree;
         -:   42:
-        1:   43:    vector<Edge> min_e(n);
-        1:   44:    min_e[0].w = 0;
-        1:   45:    set<Edge> q;
-        1:   46:    q.insert({0, 0, -1});
+        3:   43:    vector<Edge> min_e(n);
+        3:   44:    min_e[0].w = 0;
+        3:   45:    set<Edge> q;
+        3:   46:    q.insert({0, 0, -1});
         -:   47:
-        1:   48:    vector<bool> selected(n, false);
-        4:   49:    for (int i = 0; i < n; ++i) {
-        3:   50:        int v = q.begin()->to;
-        3:   51:        selected[v] = true;
-        3:   52:        q.erase(q.begin());
+        3:   48:    vector<bool> selected(n, false);
+       12:   49:    for (int i = 0; i < n; ++i) {
+        9:   50:        int v = q.begin()->to;
+        9:   51:        selected[v] = true;
+        9:   52:        q.erase(q.begin());
         -:   53:
-        3:   54:        if (min_e[v].to != -1) {
-        2:   55:            spanning_tree.emplace_back(min_e[v].to, v, min_e[v].w, min_e[v].id);
+        9:   54:        if (min_e[v].to != -1) {
+        6:   55:            spanning_tree.emplace_back(min_e[v].to, v, min_e[v].w, min_e[v].id);
         -:   56:        }
         -:   57:
-       15:   58:        for (Edge e : adj[v]) {
-       12:   59:            if (!selected[e.to] && e.w < min_e[e.to].w) {
-        3:   60:                q.erase({min_e[e.to].w, e.to, e.id});
-        3:   61:                min_e[e.to] = {e.w, v, e.id};
-        3:   62:                q.insert({e.w, e.to, e.id});
+       49:   58:        for (Edge e : adj[v]) {
+       40:   59:            if (!selected[e.to] && e.w < min_e[e.to].w) {
+        9:   60:                q.erase({min_e[e.to].w, e.to, e.id});
+        9:   61:                min_e[e.to] = {e.w, v, e.id};
+        9:   62:                q.insert({e.w, e.to, e.id});
         -:   63:            }
         -:   64:        }
         -:   65:    }
-        2:   66:    return spanning_tree;
-        1:   67:}
+        6:   66:    return spanning_tree;
+        3:   67:}
         -:   68:
-        1:   69:MST_graph MST_strategy::prim(const vector<tuple<int, int, int, int>>& edges, int n) {
+        3:   69:MST_graph MST_strategy::prim(const vector<tuple<int, int, int, int>>& edges, int n) {
         -:   70:    // Create an adjacency list with 'n' nodes
-        1:   71:    vector<vector<Edge>> adj(n);
+        3:   71:    vector<vector<Edge>> adj(n);
         -:   72:
-        7:   73:    for (const auto& e : edges) {
+       23:   73:    for (const auto& e : edges) {
         -:   74:        // Unpack the tuple into nodes (u, v), weight, and edge ID
         -:   75:        int u, v, weight, id;
-        6:   76:        tie(u, v, weight, id) = e;  // Correct unpacking
+       20:   76:        tie(u, v, weight, id) = e;  // Correct unpacking
         -:   77:
         -:   78:        // Add the edges to the adjacency list
-        6:   79:        adj[u].push_back(Edge(weight, v, id));  // Edge from u to v
-        6:   80:        adj[v].push_back(Edge(weight, u, id));  // Edge from v to u (undirected graph)
+       20:   79:        adj[u].push_back(Edge(weight, v, id));  // Edge from u to v
+       20:   80:        adj[v].push_back(Edge(weight, u, id));  // Edge from v to u (undirected graph)
         -:   81:    }
         -:   82:    // Now call your _prim function, assuming it takes adj and n
-        1:   83:    vector<tuple<int, int, int, int>> spanning_tree = _prim(adj, n);
+        3:   83:    vector<tuple<int, int, int, int>> spanning_tree = _prim(adj, n);
         -:   84:
         -:   85:    // cout << "Prim's Algorithm\n";
         -:   86:
         -:   87:    // Return the MST result as a string
-        2:   88:    return MST_graph(spanning_tree,"prim");
-        1:   89:}
+        6:   88:    return MST_graph(spanning_tree,"prim");
+        3:   89:}
         -:   90:

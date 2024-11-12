@@ -1,6 +1,11 @@
 nc localhost 9034
                (space) - No command received.
-Newgraph -2 0 
+Removeedge - No graph found for removing edge.
+Newedge -No graph found for adding edge.
+Reduceedge -No graph found for reducing edge.
+Pipeline -No MST found.
+Leader_Follower -No MST found.
+Newgraph -2 0 - Invalid graph parameters. 
 prim - No graph found.
 kruskal - No graph found.
 Newgraph 3 3 0 1 2 1 2 4 0 2 10
@@ -11,4 +16,4 @@ prim
 kruskal
 Leader_Follower
 Pipeline 
-5112
+5112 - Unknown command.

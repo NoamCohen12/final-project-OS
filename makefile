@@ -1,4 +1,5 @@
 CXX = g++ -g -gdwarf-4 -fprofile-arcs -ftest-coverage
+#option to covarge : -fprofile-arcs -ftest-coverage
 
 .PHONY: all clean run_tests coverage
 

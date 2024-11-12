@@ -2,21 +2,21 @@
         -:    1:#include "MST_graph.hpp"
         -:    2:
         -:    3:// Helper function to perform DFS and accumulate the path weight between two vertices
-       14:    4:bool dfs(int current, int target, const vector<vector<tuple<int, int, int>>>& adj, vector<bool>& visited, int& path_weight) {
-       14:    5:    if (current == target) return true;  // Found the target vertex
+       42:    4:bool dfs(int current, int target, const vector<vector<tuple<int, int, int>>>& adj, vector<bool>& visited, int& path_weight) {
+       42:    5:    if (current == target) return true;  // Found the target vertex
         -:    6:
-        8:    7:    visited[current] = true;
+       24:    7:    visited[current] = true;
         -:    8:
-        9:    9:    for (const auto& edge : adj[current]) {
+       27:    9:    for (const auto& edge : adj[current]) {
         -:   10:        int to, weight, id;
-        9:   11:        tie(to, weight, id) = edge;
+       27:   11:        tie(to, weight, id) = edge;
         -:   12:
-        9:   13:        if (!visited[to]) {
-        8:   14:            path_weight += weight;  // Accumulate the weight
+       27:   13:        if (!visited[to]) {
+       24:   14:            path_weight += weight;  // Accumulate the weight
         -:   15:
         -:   16:            // Recursively search for the target vertex
-        8:   17:            if (dfs(to, target, adj, visited, path_weight)) {
-        8:   18:                return true;  // Return true if target found
+       24:   17:            if (dfs(to, target, adj, visited, path_weight)) {
+       24:   18:                return true;  // Return true if target found
         -:   19:            }
     #####:   20:            path_weight -= weight;  // Backtrack if the path does not lead to the target
         -:   21:        }
@@ -25,48 +25,48 @@
         -:   24:}
         -:   25:
         -:   26:// Function to generate the matrix of total path weights between every pair of vertices
-        2:   27:vector<vector<int>> calculateWeightMatrix(int n, const vector<tuple<int, int, int, int>>& edges) {
-        2:   28:    vector<vector<tuple<int, int, int>>> adj(n);             // Using tuple directly for adjacency list
-        4:   29:    vector<vector<int>> weightMatrix(n, vector<int>(n, 0));  // Initialize the weight matrix
+        6:   27:vector<vector<int>> calculateWeightMatrix(int n, const vector<tuple<int, int, int, int>>& edges) {
+        6:   28:    vector<vector<tuple<int, int, int>>> adj(n);             // Using tuple directly for adjacency list
+       12:   29:    vector<vector<int>> weightMatrix(n, vector<int>(n, 0));  // Initialize the weight matrix
         -:   30:
         -:   31:    // Build the adjacency list for the tree from the edges
-        6:   32:    for (const auto& e : edges) {
+       18:   32:    for (const auto& e : edges) {
         -:   33:        int u, v, w, id;
-        4:   34:        tie(u, v, w, id) = e;
-        4:   35:        adj[u].emplace_back(v, w, id);
-        4:   36:        adj[v].emplace_back(u, w, id);
+       12:   34:        tie(u, v, w, id) = e;
+       12:   35:        adj[u].emplace_back(v, w, id);
+       12:   36:        adj[v].emplace_back(u, w, id);
         -:   37:    }
         -:   38:
         -:   39:    // Calculate the weight between all pairs of vertices
-        8:   40:    for (int i = 0; i < n; ++i) {
-       12:   41:        for (int j = i + 1; j < n; ++j) {
-        6:   42:            vector<bool> visited(n, false);
-        6:   43:            int path_weight = 0;
-        6:   44:            if (dfs(i, j, adj, visited, path_weight)) {
-        6:   45:                weightMatrix[i][j] = weightMatrix[j][i] = path_weight;  // Symmetric matrix
+       24:   40:    for (int i = 0; i < n; ++i) {
+       36:   41:        for (int j = i + 1; j < n; ++j) {
+       18:   42:            vector<bool> visited(n, false);
+       18:   43:            int path_weight = 0;
+       18:   44:            if (dfs(i, j, adj, visited, path_weight)) {
+       18:   45:                weightMatrix[i][j] = weightMatrix[j][i] = path_weight;  // Symmetric matrix
         -:   46:            }
-        6:   47:        }
+       18:   47:        }
         -:   48:    }
-        4:   49:    return weightMatrix;
-        2:   50:}
+       12:   49:    return weightMatrix;
+        6:   50:}
         -:   51:
-        2:   52:MST_graph::MST_graph(vector<tuple<int, int, int, int>> edges, string strategy) {
-        2:   53:    this->edges = edges;
-        2:   54:    numVertices = edges.size() + 1;
-        2:   55:    alldistances = calculateWeightMatrix(edges.size() + 1, edges);
-        2:   56:    this->strategy = strategy;
-        2:   57:}
+        6:   52:MST_graph::MST_graph(vector<tuple<int, int, int, int>> edges, string strategy) {
+        6:   53:    this->edges = edges;
+        6:   54:    numVertices = edges.size() + 1;
+        6:   55:    alldistances = calculateWeightMatrix(edges.size() + 1, edges);
+        6:   56:    this->strategy = strategy;
+        6:   57:}
         -:   58:
         -:   59:// Function to convert the MST graph to a string
-        2:   60:string MST_graph::toString() const{
-        2:   61:    string ans;
-        2:   62:    vector<tuple<int, int, int, int>> edges = this->getEdges();
+        6:   60:string MST_graph::toString() const{
+        6:   61:    string ans;
+        6:   62:    vector<tuple<int, int, int, int>> edges = this->getEdges();
         -:   63:
-        6:   64:    for (const auto &e : edges) {
+       18:   64:    for (const auto &e : edges) {
         -:   65:        int u, v, w, id;
-        4:   66:        tie(u, v, w, id) = e;
-        4:   67:        ans += "Edge " + std::to_string(id) + ": " + std::to_string(u) + " " + std::to_string(v) + " " + std::to_string(w) + "\n";
+       12:   66:        tie(u, v, w, id) = e;
+       12:   67:        ans += "Edge " + std::to_string(id) + ": " + std::to_string(u) + " " + std::to_string(v) + " " + std::to_string(w) + "\n";
         -:   68:    }
         -:   69:
-        4:   70:    return ans;
-        2:   71:}
+       12:   70:    return ans;
+        6:   71:}
