@@ -5,7 +5,7 @@
 
 void LeaderFollowerPool::start() {
     {
-        lock_guard<mutex> lock(mutexqueue);  // Lock the mutex
+        lock_guard<mutex> lock(mutexstop);  // Lock the mutex
         stopFlag_ = false;
     }
 }
@@ -32,10 +32,7 @@ void LeaderFollowerPool::mainFunction(void* task) {
     MST_stats mst_stats;
 
     auto* taskTuple = static_cast<tuple<MST_graph*, string*, int>*>(task);
-    // if (!taskTuple) {
-    //     cout << "Error: Invalid task tuple" << endl;
-    //     return;
-    // }
+   
     MST_graph* clientMST = std::get<0>(*taskTuple);
     string* clientAns = std::get<1>(*taskTuple);
     int fdclient = std::get<2>(*taskTuple);
@@ -90,14 +87,13 @@ void LeaderFollowerPool::leaderRole() {
 }
 
 void LeaderFollowerPool::followerRole() {
-     //lock_guard<mutex> lock(mutexqueue);
     cv_.notify_one();  // Wake up next thread to be leader
 }
 
 // Method to gracefully stop the thread pool
 void LeaderFollowerPool::stop() {
     {
-        std::lock_guard<std::mutex> lock(mutexqueue);  // Lock the mutex for the queue
+        std::lock_guard<std::mutex> lock(mutexqueue);  // Lock the mutex for the stop
         stopFlag_ = true;
         cv_.notify_all();  // Notify all waiting threads with the lock held
     }

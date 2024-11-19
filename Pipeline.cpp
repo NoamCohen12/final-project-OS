@@ -165,12 +165,6 @@ class Pipeline {
         for (int i = 0; i < activeObjects.size() - 1; ++i) {
             activeObjects[i].nextQueueActiveObject = &activeObjects[i + 1].tasks;
         }
-        // cout << "Pipeline initialized with " << activeObjects.size() << " ActiveObjects." << endl;
-        for (auto& activeObject : activeObjects) {
-            // std::mutex* mtx = new std::mutex();                             // creating a new mutex
-            //  std::condition_variable* cond = new std::condition_variable();  // creating a new condition variable
-            // activeObject.cv = cond;
-        }
     }
 
     ~Pipeline() {

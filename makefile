@@ -1,11 +1,11 @@
-CXX = g++ -g -gdwarf-4 -fprofile-arcs -ftest-coverage
+CXX = g++ -g -gdwarf-4 
 #option to covarge : -fprofile-arcs -ftest-coverage
 
 .PHONY: all clean run_tests coverage
 
 all: main 
 
-main: main.o union_find.o Graph.o GraphGUI.o MST_graph.o MST_stats.o MST_strategy.o LeaderFollowerPool.o Pipeline.o
+main: main.o union_find.o Graph.o GraphGUI.o MST_graph.o MST_stats.o MST_strategy.o LeaderFollowerPool.o Pipeline.o MST_factory.o
 	$(CXX) -o $@ $^ -lsfml-graphics -lsfml-window -lsfml-system
 
 main.o: main.cpp
@@ -21,6 +21,9 @@ MST_stats.o: MST_stats.cpp
 	$(CXX) -c -o $@ $^
 
 MST_strategy.o: MST_strategy.cpp
+	$(CXX) -c -o $@ $^
+
+MST_factory.o: MST_factory.cpp
 	$(CXX) -c -o $@ $^
 
 union_find.o: union_find.cpp

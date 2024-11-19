@@ -25,20 +25,24 @@
 #include "Graph.cpp"
 #include "GraphGUI.cpp"  // Include the GraphGUI header
 #include "LeaderFollowerPool.hpp"
+#include "MST_factory.hpp"
 #include "MST_graph.hpp"
 #include "MST_stats.hpp"
 #include "MST_strategy.hpp"
 #include "Pipeline.cpp"
 #include "union_find.hpp"
+
 #define PORT "9034"    // port we're listening on
 #define NUM_THREADS 4  // Number of threads in the thread pool
 using namespace std;
 unordered_map<int, tuple<Graph, MST_graph, string>> map_clients;  // Each client gets its own graph
 std::mutex lfMutex;                                               // Declare as static to ensure it's shared across function calls
-LeaderFollowerPool threadPool(NUM_THREADS, lfMutex);              // Create a thread pool object
+LeaderFollowerPool threadPool(NUM_THREADS, lfMutex);              // Create a thread pool object - 4 threads
 Pipeline pipeline;
 MST_strategy mst;
+MST_factory factory;
 atomic<bool> isMST{false};
+vector<string> mstStrats = {"prim", "kruskal"};
 
 // Declare the LeaderFollowerPool instance here
 int listener;  // Global listener for shutdown handling
@@ -98,34 +102,23 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
                 ans += clientGraph.toString();
             }
         }
-
-    } else if (command_of_user == "prim") {
+        // prim or kruskal
+    } else if (find(mstStrats.begin(), mstStrats.end(), command_of_user) != mstStrats.end()) {
         if (clientGraph.getEdges().empty()) {
-            {
-                ans += "No graph found.\n";
-            }
+            ans += "No graph found.\n";
         } else {
-            clientMST = mst.prim(clientGraph.getEdges(), clientGraph.getnumVertices());
-            clientMST.setStrategy("prim");
+            auto pclientMST = factory.createMST(clientGraph.getEdges(), clientGraph.getnumVertices(), command_of_user);
+            clientMST = *pclientMST;
+            clientMST.setStrategy(command_of_user);
             isMST = true;
-            ans += "MST created using Prim's Algorithm.\n";
+            ans += "MST created using " + command_of_user + "'s Algorithm.\n";
             ans += clientMST.toString();
-        }
+            delete pclientMST;
 
-    } else if (command_of_user == "kruskal") {
-        if (clientGraph.getEdges().empty()) {
-            {
-                ans += "No graph found.\n";
-            }
-        } else {
-            clientMST = mst.kruskal(clientGraph.getEdges(), clientGraph.getnumVertices());
-            clientMST.setStrategy("kruskal");
-            isMST = true;
-            ans += "MST created using Kruskal's Algorithm.\n";
-            ans += clientMST.toString();
         }
+    }
 
-    } else if (command_of_user == "Newedge") {
+    else if (command_of_user == "Newedge") {
         int from, to, weight;
         iss >> from >> to >> weight;
         // cout << "Newedge n: " << n << endl;
@@ -198,54 +191,6 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
     return ans;
 }
 
-// // get sockaddr, IPv4 or IPv6:
-// void *get_in_addr(struct sockaddr *sa) {
-//     if (sa->sa_family == AF_INET) {
-//         return &(((struct sockaddr_in *)sa)->sin_addr);
-//     }
-//     return &(((struct sockaddr_in6 *)sa)->sin6_addr);
-// }
-
-// vector<tuple<int, int, int, int>> build_random_connected_graph(int n, int m, unsigned int seed) {
-//     srand(seed);
-//     assert(m >= (n - 1));
-//     assert(1ll * m <= (1ll * n * (n - 1)) / 2);
-
-//     vector<int> W(m, 0);
-//     iota(W.begin(), W.end(), 0);
-
-//     random_device rd;
-//     mt19937 g(seed);
-//     shuffle(W.begin(), W.end(), g);
-
-//     vector<tuple<int, int, int, int>> random_graph;
-//     int nxt = 0;
-//     set<pair<int, int>> edges;
-
-//     for (int i = 0; i < n - 1; ++i) {
-//         random_graph.emplace_back(i, i + 1, W[nxt], nxt);
-//         ++nxt;
-//         edges.emplace(i, i + 1);
-//     }
-
-//     int remaining_edges = m - (n - 1);
-//     for (int e = 0; e < remaining_edges; ++e) {
-//         int a, b;
-//         a = (rand() % n);
-//         b = (rand() % n);
-//         if (a > b) swap(a, b);
-//         while (b == a || edges.find(make_pair(a, b)) != edges.end()) {
-//             a = (rand() % n);
-//             b = (rand() % n);
-//             if (a > b) swap(a, b);
-//         }
-//         random_graph.emplace_back(a, b, W[nxt], nxt);
-//         ++nxt;
-//         edges.emplace(a, b);
-//     }
-//     assert(static_cast<int>(random_graph.size()) == m);
-//     return random_graph;
-// }
 int main() {
     mutex mtx;
     fd_set master;                          // master file descriptor list
