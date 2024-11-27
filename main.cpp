@@ -161,12 +161,12 @@ string graph_user_commands(string input_user, Graph &clientGraph, MST_graph &cli
         if (!isMST) {
             ans += "No MST found.\n";
         } else {
-            // auto clientTask = std::make_tuple(&clientMST, &clientAns,fdclient);
+            
             auto *clientTask = new std::tuple<MST_graph *, std::string *, int>(&clientMST, &clientAns, fdclient);
 
             // Pass the pointer to the tuple to the threadPool
             threadPool.addEventHandler(clientTask);
-            // Add a small delay to allow Leader_Follower to process
+            
             {
                 ans += "done\n";
             }

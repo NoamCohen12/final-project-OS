@@ -55,8 +55,7 @@ struct ActiveObject {
                     tasks.pop();
                 }
 
-                // Release the current lock before processing
-                lock.unlock();
+            
 
                 if (task) {
                     function(task, send_mutex);
@@ -76,9 +75,6 @@ struct ActiveObject {
 
 // Pipeline class that manages multiple ActiveObjects (workers)
 class Pipeline {
-    // std::mutex mtx_;
-    // std::mutex& ansMutex;
-    std::condition_variable cv_;
     std::vector<ActiveObject> activeObjects;
     //     // Task 1: Longest Distance
     static void taskLongestDistance(void* task, mutex& send_mutex) {

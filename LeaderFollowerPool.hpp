@@ -45,7 +45,7 @@ class LeaderFollowerPool {
     std::mutex &ansMutex;                // Mutex for synchronization
     std::condition_variable cv_;        // Condition variable for waiting threads
     bool stopFlag_;                     // Flag to stop the thread pool
-    bool leader_exists;;
+    bool leader_exists;                 // Flag to check if leader exists
 };
 
 #endif  // THREAD_POOL_HPP

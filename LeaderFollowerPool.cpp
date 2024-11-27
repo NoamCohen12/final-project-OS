@@ -1,19 +1,19 @@
 #include "LeaderFollowerPool.hpp"
-
 #include <chrono>
 #include <iostream>
 
-void LeaderFollowerPool::start() {
-    {
-        lock_guard<mutex> lock(mutexstop);  // Lock the mutex
-        stopFlag_ = false;
-    }
-}
+
 // Update constructor to accept shared answer stream and mutex
 LeaderFollowerPool::LeaderFollowerPool(int numThreads, std::mutex& ansMutex)
     : numThreads_(numThreads), stopFlag_(false), ansMutex(ansMutex), leader_exists(false) {
     for (int i = 0; i < numThreads_; ++i) {
         workers_.emplace_back(&LeaderFollowerPool::leaderRole, this);
+    }
+}
+void LeaderFollowerPool::start() {
+    {
+        lock_guard<mutex> lock(mutexstop);  // Lock the mutex
+        stopFlag_ = false;
     }
 }
 
@@ -50,14 +50,15 @@ void LeaderFollowerPool::mainFunction(void* task) {
         perror("send");
     }
 }
-
-void LeaderFollowerPool::leaderRole() {
+// here we role the leader from thread to thread that was sleep until yet
+void LeaderFollowerPool::leaderRole() 
+{
     while (true) {
         void* task = nullptr;
         {
             std::unique_lock<std::mutex> lock(mutexqueue);
             cv_.wait(lock, [this] {
-                std::lock_guard<std::mutex> stopLock(mutexstop);  // Lock mutexstop for stopFlag_ check
+                std::lock_guard<std::mutex> stopLock(mutexstop);  // Lock mutexstop for stopFlag_ check and we don't want any other thread change the stopFlag when we check the flag.
                 return (!eventQueue_.empty() && !leader_exists) || stopFlag_;
             });
             
@@ -74,9 +75,7 @@ void LeaderFollowerPool::leaderRole() {
                 leader_exists = false;
                 // Notify other threads that a new leader can be elected
                 followerRole();
-            } else {
-                continue;  // Recheck if spurious wakeup
-            }
+             }
         }
 
         // Execute the task outside the lock
